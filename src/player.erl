@@ -2,21 +2,27 @@
 -export([player/3]).
 
 starting_pos(Xsize, Ysize) ->
-	X = (Xsize / 2) - random:uniform(Xsize),
-	Y = (Ysize / 2) - random:uniform(Ysize),
-	{X, Y}.
+	case random:uniform(1000) of
+		S when S =< 250 ->
+			{random:uniform(Xsize), (Ysize / 2) - 10, 90};
+		S when S =< 500 ->
+			{random:uniform(Xsize), 0 - (Ysize / 2) + 10, 270};
+		S when S =< 750 ->
+			{random:uniform(Ysize), (Xsize / 2) - 10, 0};
+		S ->
+			{random:uniform(Ysize), 0 - (Xsize / 2)  + 10, 0}
+	end.
 
 player(Master, Xsize, Ysize) ->
 	io:format("Player PID is ~w~n", [self()]),
 	random:seed(erlang:now()),
-	{X, Y} = starting_pos(Xsize, Ysize),
-	player(Master, {X, Y, 0}, movement:startMatrix(0, 0), none, 0, Xsize, Ysize).
+	{X, Y, Z} = starting_pos(Xsize, Ysize),
+	player(Master, {X, Y, Z}, movement:startMatrix(0, 0), none, 0, Xsize, Ysize).
 
 player(Master, _, _, dead, _, Xsize, Ysize) ->
 	receive
 		respawn ->
-			{X, Y} = starting_pos(Xsize, Ysize),
-			Z = 0,
+			{X, Y, Z} = starting_pos(Xsize, Ysize),
 			whereis(play_space) ! {self(), X, Y, Z, movement:startMatrix(0, 0) },
 			player(Master, { X, Y, 0 }, movement:startMatrix(0, 0), none, 0, Xsize, Ysize);
 		{moved, _, _, NotMe, Torps} ->
