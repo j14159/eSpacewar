@@ -25,7 +25,7 @@ start(_StartType, _StartArgs) ->
 		[{env, [{dispatch, Dispatch}]}]
 		),
 	spawn(score_board, score_board, []),
-	spawn(space, space, [500, 500]),	
+	spawn(space, space, [800, 500]),	
 	spacewar1_sup:start_link().
 
 

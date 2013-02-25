@@ -111,7 +111,7 @@ function openWs()
         }
 
         if(payload.player != undefined) {
-            payload.player.x = payload.player.x + 250;
+            payload.player.x = payload.player.x + 400;
             payload.player.y = payload.player.y + 250;
             //console.log(payload.player.x + " x " + payload.player.y);
             updatePos(payload.player);
@@ -121,7 +121,7 @@ function openWs()
             clearEnemies(enemies);
             enemies = payload.enemies;
             enemies.forEach(function(e) {
-                e.x = e.x + 250;
+                e.x = e.x + 400;
                 e.y = e.y + 250;
             })
             drawEnemies(enemies);
@@ -131,7 +131,7 @@ function openWs()
             clearTorps(torps);
             torps = payload.torps;
             torps.forEach(function(t) {
-                t.x = t.x + 250;
+                t.x = t.x + 400;
                 t.y = t.y + 250;
             })
             drawTorps(torps);
@@ -216,7 +216,7 @@ function updatePos(payload) {
     ctx.save();
 
     ctx.beginPath();
-    ctx.arc(250, 250, 20, 0, Math.PI * 2, false);
+    ctx.arc(400, 250, 20, 0, Math.PI * 2, false);
     ctx.stroke();
     ctx.closePath();
     ctx.restore();
@@ -271,7 +271,7 @@ function updateScores(scores) {
     w = fire torpedo<br/>
 </div>
 <div>
-    <canvas id="space" width="500" height="500" style="border:1px solid #000000; float:left;"></canvas>
+    <canvas id="space" width="800" height="500" style="border:1px solid #000000; float:left;"></canvas>
     <div id="scoresDiv">
         <h1>Scores</h1>
         <table id="scores"/>
