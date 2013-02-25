@@ -79,7 +79,7 @@ player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps, Xsize, Ysize) -
 			whereis(play_space) ! {dead, self()},
 			0;
 		_ ->
-			player(Master, {X, Y, 0}, Vector, UpdateVector, LiveTorps, Xsize, Ysize)
+			player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps, Xsize, Ysize)
 	end.
 
 % move is a bit of a hack to make sure torps spawn far enough away from the player.
