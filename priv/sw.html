@@ -1,0 +1,232 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
+<script type="text/javascript">
+var ws;
+
+var x=0;
+var y=0;
+var heading = 0;
+var enemies = [];
+var torps = [];
+
+$(document).keypress(function(e) {
+  //  console.log(e.which);
+    if(e.which == 97) //'a'
+        send(-1, 0, 0);
+    else if(e.which == 100) //'d'
+        send(1, 0, 0);
+    else if(e.which == 115) //'s'
+        send(0, 1, 0);
+    else if(e.which == 119) //'w'
+        send(0, 0, 1);
+})
+
+function send(attitude, thrust, fire)
+{
+    var p = "";
+    if(attitude > 0)
+        p = p + "01";
+    else if(attitude < 0)
+        p = p + "10";
+    else
+        p = "00";
+
+    if(thrust > 0)
+        p = p + "1";
+    else
+        p = p + "0" ;
+
+    if(fire > 0)
+        p = p + "1";
+    else
+        p = p + "0";
+
+    ws.send(p);
+}
+
+function openWs()
+{
+    var playerName = $("#playerName").val();
+    console.log("Opening WS");
+
+    if (!("WebSocket" in window)) {
+        alert("This browser does not support WebSockets");
+        return;
+    }
+    /* @todo: Change to your own server IP address */
+    //ws = new WebSocket("ws://172.18.138.158:8080/ws");
+    ws = new WebSocket("ws://localhost:8080/ws?player=" + encodeURIComponent(playerName));
+    ws.onopen = function() {
+        $("#loginBox").remove();
+        console.log('Connected');
+    };
+    ws.onmessage = function (evt)
+    {
+        var received_msg = evt.data;
+
+        var payload = JSON.parse(evt.data);
+
+        if(payload.score != undefined) {
+            updateScores(payload.score);
+        }
+
+        if(payload.player != undefined) {
+            payload.player.x = payload.player.x + 250;
+            payload.player.y = payload.player.y + 250;
+            //console.log(payload.player.x + " x " + payload.player.y);
+            updatePos(payload.player);
+        }
+
+        if(payload.enemies != undefined) { // && payload.enemies.length > 0) {
+            clearEnemies(enemies);
+            enemies = payload.enemies;
+            enemies.forEach(function(e) {
+                e.x = e.x + 250;
+                e.y = e.y + 250;
+            })
+            drawEnemies(enemies);
+        }
+        
+        if(payload.torps != undefined) {
+            clearTorps(torps);
+            torps = payload.torps;
+            torps.forEach(function(t) {
+                t.x = t.x + 250;
+                t.y = t.y + 250;
+            })
+            drawTorps(torps);
+        }
+    };
+    ws.onclose = function()
+    {
+        console.log('Connection closed');
+    };
+}
+
+function clearEnemies(enem) {
+    var c = document.getElementById("space");
+    var ctx = c.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+ 
+    if(enem.length > 0)
+        enem.forEach(function(e) {       
+            ctx.fillRect(e.x-10, e.y-10, 20, 20);    
+        });
+}
+
+function drawEnemies(enems) {
+    var c = document.getElementById("space");
+    var ctx = c.getContext("2d");
+
+    enems.forEach(function(enem) {
+        ctx.save();
+        ctx.fillStyle = "#000000";
+        ctx.translate(enem.x, enem.y);
+        ctx.rotate(enem.z * Math.PI / 180);
+
+        drawShip(ctx);
+
+        ctx.restore();
+    });
+}
+
+function drawTorps(t) {
+    var c = document.getElementById("space");
+    var ctx = c.getContext("2d");
+    ctx.fillStyle = "#ff0000";
+
+    t.forEach(function(torp) {
+        ctx.fillRect(torp.x - 2, torp.y - 2, 4, 4);
+    });
+}
+
+function clearTorps(t) {
+    var c = document.getElementById("space");
+    var ctx = c.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+
+    if(t.length > 0)
+        t.forEach(function(torp) {
+            ctx.fillRect(torp.x - 3, torp.y - 3, 6, 6);
+        });
+}
+
+
+function updatePos(payload) {
+    var c = document.getElementById("space");
+    var ctx = c.getContext("2d");
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(x-10, y-10, 20, 20);
+    //drawShip(ctx);
+
+    heading = payload.z;
+    x = payload.x;
+    y = payload.y;
+
+    ctx.save();
+    ctx.fillStyle = "#00ff00";
+    ctx.translate(x, y);
+    ctx.rotate(heading * Math.PI / 180);
+    
+    drawShip(ctx);
+
+    ctx.restore();
+
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.arc(250, 250, 20, 0, Math.PI * 2, false);
+    ctx.stroke();
+    ctx.closePath();
+    ctx.restore();
+}
+
+function drawShip(ctx) {
+    ctx.beginPath();
+    ctx.moveTo(5, 0);
+    
+    ctx.beginPath();
+    ctx.lineTo(-5, 5);
+    ctx.lineTo(-5, -5);
+    ctx.lineTo(5, 0);
+    ctx.closePath();
+    ctx.fill();    
+}
+
+function updateScores(scores) {
+    newTable = "<table id='scores'>"
+    scores.forEach(function(s) {
+        newTable = newTable + "<tr><td>" + s.name + "</td><td>" + s.score + "</td></tr>"
+    });
+
+    newTable = newTable + "</table>";
+
+    $("#scores").remove();
+    $("#scoresDiv").append(newTable);
+}
+
+</script>
+</head>
+<body>
+<div id="sse">
+    <span id="loginBox">
+        Username: <input type=text id="playerName"/>
+        <a href="#" onClick="openWs();">Start Playing</a><br/>
+    </span>
+    a = rotate left<br/>
+    d = rotate right<br/>
+    s = thrust<br/>
+    w = fire torpedo<br/>
+</div>
+<div>
+    <canvas id="space" width="500" height="500" style="border:1px solid #000000; float:left;"></canvas>
+    <div id="scoresDiv">
+        <h1>Scores</h1>
+        <table id="scores"/>
+    </div>
+</div>
+</body>
+</html>

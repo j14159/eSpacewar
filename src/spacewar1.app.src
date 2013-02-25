@@ -1,0 +1,14 @@
+{application, spacewar1,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+		  crypto,
+		  cowboy
+                 ]},
+  {mod, { spacewar1_app, []}},
+  {env, []}
+ ]}.
