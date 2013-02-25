@@ -14,8 +14,8 @@ space(Xsize, Ysize, Players, Torps, ScoreBoard) ->
 			%		move_player(P, X, Y, Z, movement:addMatrix(V, planet_vector(X, Y, V, Xsize, Ysize))) end,
 			
 			%MoveSomething = fun({P, X, Y, Z, V}) -> move_player(P, X, Y, Z, V, Xsize, Ysize) end,
-			MoveShip = fun({P, X, Y, Z, V}) -> move_player(P, X, Y, Z, planet_influence(X, Y, V, 10, Xsize, Ysize), Xsize, Ysize) end,
-			MoveTorp = fun({P, X, Y, Z, V}) -> move_player(P, X, Y, Z, planet_influence(X, Y, V, 5, Xsize, Ysize), Xsize, Ysize) end,
+			MoveShip = fun({P, X, Y, Z, V}) -> move_player(P, X, Y, Z, planet_influence(X, Y, V, 8, Xsize, Ysize), Xsize, Ysize) end,
+			MoveTorp = fun({P, X, Y, Z, V}) -> move_player(P, X, Y, Z, planet_influence(X, Y, V, 8, Xsize, Ysize), Xsize, Ysize) end,
 			
 
 			MovedPlayers = lists:map(MoveShip, Players),

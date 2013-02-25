@@ -11,39 +11,77 @@ var heading = 0;
 var enemies = [];
 var torps = [];
 
-$(document).keypress(function(e) {
-  //  console.log(e.which);
-    if(e.which == 97) //'a'
-        send(-1, 0, 0);
-    else if(e.which == 100) //'d'
-        send(1, 0, 0);
-    else if(e.which == 115) //'s'
-        send(0, 1, 0);
-    else if(e.which == 119) //'w'
-        send(0, 0, 1);
-})
+var fire = false;
+var left = false;
+var right = false;
+var thrust = false;
 
-function send(attitude, thrust, fire)
-{
+$(document).keydown(function(e) {
+    switch(e.keyCode) {
+        case 87:
+            fire = true;
+            break;
+        case 83:
+            thrust = true;
+            break;
+        case 65:
+            left = true;
+            break;
+        case 68:
+            right = true;
+            break;
+        default:
+            console.log("unknown");
+    }
+    
+    send();
+});
+
+$(document).keyup(function(e) {
+    switch(e.keyCode) {
+        case 87:
+            fire = false;
+            break;
+        case 83:
+            thrust = false;
+            break;
+        case 65:
+            left = false;
+            break;
+        case 68:
+            right = false;
+            break;
+        default:
+            console.log("unknown");
+    }
+
+    send();
+});
+
+
+function send() {
     var p = "";
-    if(attitude > 0)
-        p = p + "01";
-    else if(attitude < 0)
+    if(left)
         p = p + "10";
+    else if(right)
+        p = p + "01";
     else
-        p = "00";
+        p = p + "00";
 
-    if(thrust > 0)
-        p = p + "1";
-    else
-        p = p + "0" ;
-
-    if(fire > 0)
+    if(thrust)
         p = p + "1";
     else
         p = p + "0";
 
-    ws.send(p);
+    if(fire)
+        p = p + "1";
+    else
+        p = p + "0";
+
+    console.log(p);
+    
+    if(ws != undefined)
+        ws.send(p);
 }
 
 function openWs()

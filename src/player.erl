@@ -37,7 +37,7 @@ player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps, Xsize, Ysize) -
 			Master ! {updated, payload({X, Y, Heading}, NotMe, Torps)},
 			player(Master, {X1, Y1, Heading}, Vector, none, LiveTorps, Xsize, Ysize);
 		thrust when UpdateVector =:= none ->
-			{{_, _}, {NvX, NvY}} = movement:addMatrix(Vector, movement:nextMatrix(scaled, Heading, 0.5, X, Y)),
+			{{_, _}, {NvX, NvY}} = movement:addMatrix(Vector, movement:nextMatrix(scaled, Heading, 1, X, Y)),
 			Vec = {{X, Y}, {NvX, NvY}},
 			Space ! {self(), X, Y, Heading, Vec},
 			%player(Master, {X, Y, Heading}, {{X, Y}, 
