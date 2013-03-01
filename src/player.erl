@@ -69,10 +69,10 @@ player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps, Xsize, Ysize) -
 		{attitude, Change} ->
 			case Change of
 				C when C < 0 ->
-					player(Master, {X, Y, movement:clampAttitude(Heading - 10)},
+					player(Master, {X, Y, movement:clampAttitude(Heading - 2)},
 						Vector, UpdateVector, LiveTorps, Xsize, Ysize);
 				C when C > 0 ->
-					player(Master, {X, Y, movement:clampAttitude(Heading + 10)},
+					player(Master, {X, Y, movement:clampAttitude(Heading + 2)},
 						Vector, UpdateVector, LiveTorps, Xsize, Ysize);
 				_ ->
 					player(Master, {X, Y, Heading},
