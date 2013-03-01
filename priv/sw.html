@@ -31,7 +31,7 @@ $(document).keydown(function(e) {
             right = true;
             break;
         default:
-            console.log("unknown");
+            break;//console.log("unknown");
     }
     
     send();
@@ -52,7 +52,7 @@ $(document).keyup(function(e) {
             right = false;
             break;
         default:
-            console.log("unknown");
+            break;//console.log("unknown");
     }
 
     send();
@@ -77,11 +77,11 @@ function send() {
         p = p + "1";
     else
         p = p + "0";
-
-    console.log(p);
     
     if(ws != undefined)
         ws.send(p);
+
+    fire = false;
 }
 
 function openWs()
@@ -94,11 +94,17 @@ function openWs()
         return;
     }
     /* @todo: Change to your own server IP address */
-    //ws = new WebSocket("ws://172.18.138.158:8080/ws");
-    ws = new WebSocket("ws://localhost:8080/ws?player=" + encodeURIComponent(playerName));
+    //ws = new WebSocket("ws://172.18.146.201:8080/ws?player=" + encodeURIComponent(playerName));
+    var url = "ws://" + document.domain + ":8080/ws?player=" + encodeURIComponent(playerName);
+    console.log("Connecting to " + url + " for websocket");
+    ws = new WebSocket(url);
+    //ws = new WebSocket("ws://localhost:8080/ws?player=" + );
+
     ws.onopen = function() {
         $("#loginBox").remove();
         console.log('Connected');
+        console.log('starting control loop');
+        window.setInterval("send()", 10);
     };
     ws.onmessage = function (evt)
     {
