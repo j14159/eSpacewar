@@ -9,48 +9,24 @@ space(Xsize, Ysize) ->
 space(Xsize, Ysize, Players, Torps, ScoreBoard) ->
 	receive
 		update ->
-			% perform moves	    
-			%MoveSomething = fun({P, X, Y, Z, V}) -> 
-			%		move_player(P, X, Y, Z, movement:addMatrix(V, planet_vector(X, Y, V, Xsize, Ysize))) end,
-			
-			%MoveSomething = fun({P, X, Y, Z, V}) -> move_player(P, X, Y, Z, V, Xsize, Ysize) end,
-			MoveShip = fun({P, X, Y, Z, V}) -> move_player(P, X, Y, Z, planet_influence(X, Y, V, 8, Xsize, Ysize), Xsize, Ysize) end,
-			MoveTorp = fun({P, X, Y, Z, V}) -> move_player(P, X, Y, Z, planet_influence(X, Y, V, 8, Xsize, Ysize), Xsize, Ysize) end,
-			
-
-			MovedPlayers = lists:map(MoveShip, Players),
-			MovedTorps = lists:map(MoveTorp, Torps),
-			
-			% now check collisions:
-			%{Suicided, ShipsToRemove} = collisions(MovedPlayers, lists:flatten([MovedPlayers | MovedTorps]), [], []),
-			{Suicided, _} = collisions(MovedPlayers, MovedPlayers, [], []),
-			
-			% get a list of *live* enemies for display:
-			NotSuicided = filter_dead(Suicided, MovedPlayers),
-			{Torped, TorpsToRemove} = collisions(NotSuicided, MovedTorps, [], []),
+			{NotSuicided, Suicided} = moved_and_suicides(Players, Xsize, Ysize),
 			% kill spent torps and adjust scores:
-			lists:map(fun({Pid, _, _, _, _}) -> Pid ! hit end, TorpsToRemove),
+			{StillTorping, HitTorps, PlanetTorps, Torped} = torping_and_torped(Torps, NotSuicided, Xsize, Ysize),
 			
-			{StillTorping, PlanetTorps} = planet_impacts(20, filter_dead(TorpsToRemove, MovedTorps), [], []),
-
-			%StillTorping = filter_dead(TorpsToRemove, MovedTorps),
+			lists:map(fun({Pid, _, _, _, _}) -> Pid ! hit end, HitTorps),
 			lists:map(fun({Pid, _, _, _, _}) -> Pid ! dead end, PlanetTorps),
 			lists:map(fun({Pid, _, _, _, _}) -> Pid ! tick end, StillTorping),
 			
 			%adjust scores for suicides:
 			lists:map(fun({Pid, _, _, _, _}) -> ScoreBoard ! {Pid, -1} end, Suicided),
-			
-			
 
 			Dead1 = lists:flatten([Suicided | Torped]),
-			%NotDead = filter_dead(Torped, NotSuicided),
-			NotDead1 = filter_dead(Dead1, MovedPlayers),
+			NotDead1 = filter_dead(Dead1, NotSuicided),
 
 			{NotDead, Dead2} = planet_impacts(20, NotDead1, [], []),
-
 			Dead = lists:flatten([Dead1 | Dead2]),
 			
-			msg_players(MovedPlayers, NotDead, StillTorping),
+			msg_players(NotDead, NotDead, StillTorping),
 			% tell dead players they're dead:
 			lists:map(fun({Pid, _, _, _, _}) -> Pid ! dead end, Dead),
 			
@@ -79,6 +55,26 @@ space(Xsize, Ysize, Players, Torps, ScoreBoard) ->
 		_ ->
 			0
 	end.
+
+%returns {moved and live players, players who collided with other players}
+moved_and_suicides(Players, Xsize, Ysize) ->
+	Move = fun({P, X, Y, Z, V}) -> move_entity(P, X, Y, Z, planet_influence(X, Y, V, 8, Xsize, Ysize), Xsize, Ysize) end,
+			
+	MovedPlayers = lists:map(Move, Players),			
+	% now check collisions:
+	{Suicided, _} = collisions(MovedPlayers, MovedPlayers, [], []),
+			
+	% get a list of *live* enemies for display:
+	NotSuicided = filter_dead(Suicided, MovedPlayers),
+	{NotSuicided, Suicided}.
+
+torping_and_torped(Torps, Players, Xsize, Ysize) ->
+	Move = fun({P, X, Y, Z, V}) -> move_entity(P, X, Y, Z, planet_influence(X, Y, V, 8, Xsize, Ysize), Xsize, Ysize) end,
+	MovedTorps = lists:map(Move, Torps),
+	{Torped, HitTorps} = collisions(Players, MovedTorps, [], []),			
+	{StillTorping, PlanetTorps} = planet_impacts(20, filter_dead(HitTorps, MovedTorps), [], []),
+
+	{StillTorping, HitTorps, PlanetTorps, Torped}.
 
 % change an entities vector based on planetary gravity.
 planet_influence(X, Y, Vec, Mass, SpaceW, SpaceH) ->
@@ -120,7 +116,6 @@ collisions([Ship | Rest], Players, Dead, ToRemove) ->
 		{Ship, Remove} ->
 			collisions(Rest, Players, [Ship | Dead], [Remove | ToRemove])
 	end.
-%    ship_collisions(Rest, Players, [NewDead | Dead]).  
 
 % checks an individual ship for collisions against the others:
 collision_check(Ship, Others) ->
@@ -152,7 +147,7 @@ msg_players([P | Rest], Players, Torps) ->
 	Pid ! Msg,
 	msg_players(Rest, Players, Torps).
 
-move_player(Pid, X, Y, Z, V, Xsize, Ysize) ->
+move_entity(Pid, X, Y, Z, V, Xsize, Ysize) ->
 	{X2, Y2} = movement:move({X, Y}, V),
 	{Pid, valid_space(X2, Xsize), valid_space(Y2, Ysize), Z, V}.
 

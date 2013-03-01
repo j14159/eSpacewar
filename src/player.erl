@@ -28,6 +28,9 @@ player(Master, _, _, dead, _, Xsize, Ysize) ->
 		{moved, _, _, NotMe, Torps} ->
 			Master ! {updated, payload(NotMe, Torps)},
 			player(Master, none, none, dead, 0, Xsize, Ysize);
+		{score, Score} ->
+			Master ! {updated, score_payload(Score)},
+			player(Master, {0, 0, 0}, none, dead, 0, Xsize, Ysize);
 		_ ->
 			player(Master, {0, 0, 0}, none, dead, 0, Xsize, Ysize)
 	end;
