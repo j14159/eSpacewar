@@ -24,6 +24,7 @@ start(_StartType, _StartArgs) ->
 		[{port, 8080}],
 		[{env, [{dispatch, Dispatch}]}]
 		),
+	lager:start(),
 	spawn(score_board, score_board, []),
 	spawn(space, space, [800, 500]),	
 	spacewar1_sup:start_link().

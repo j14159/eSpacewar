@@ -1,7 +1,9 @@
 -module(score_board).
 -export([score_board/0]).
+-compile([{parse_transform, lager_transform}]).
 
 score_board() ->
+%	lager:start(),
 	register(space_score, self()),
 	score_board([]).
 
@@ -18,6 +20,9 @@ score_board(State) ->
 					score_board(State);
 				ok ->
 					WsProcess ! ok,
+					NewCount = length(NewState),
+					lager:info("Player joined:  ~s", [PlayerName]),
+					lager:info("Player count:  ~p", [NewCount]),
 					broadcast_score(NewState),
 					score_board(NewState)
 			end;
