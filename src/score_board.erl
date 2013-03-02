@@ -42,7 +42,7 @@ broadcast_score(State) ->
 	lists:map(fun({_, Pid, _}) -> Pid ! {score, CleanScore} end, State).
 
 attempt_join(NewName, NewPid, State) ->
-	Existing = [N || {N, _, _} <- State, N == NewName],
+	Existing = [N || {N, _, _} <- State, N =:= NewName],
 	case Existing of
 		[H | T] when H == NewName ->
 			{not_available, State};

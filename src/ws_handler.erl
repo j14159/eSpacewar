@@ -1,5 +1,6 @@
 -module(ws_handler).
 -behaviour(cowboy_websocket_handler).
+-compile([{parse_transform, lager_transform}]).
 
 -export([init/3, websocket_init/3, websocket_handle/3, websocket_info/3, websocket_terminate/3]).
 
@@ -8,16 +9,21 @@ init({tcp, http}, _Req, _Opts) ->
 
 websocket_init(TransportName, Req, _Opts) ->
     {PlayerName, Req2} = cowboy_req:qs_val(<<"player">>, Req),
-    case check_empty_username(PlayerName) of
+    SafeName = filter_angle_brackets(PlayerName),
+    lager:info("Attempting to log in ~s", [SafeName]),
+
+    case check_empty_username(SafeName) of
         empty ->
             self() ! {updated, mochijson2:encode({struct, [{error, <<"Empty usernames not allowed">>}]})},
             {ok, Req2, undefined};
         ok ->
-            Player = spawn(player, player, [self(), 500, 500]),
-            check_available_username(PlayerName, Player, Req2)
+            Player = spawn(player, player, [self(), 500, 800]),
+            check_available_username(SafeName, Player, Req2)
     end.
-    
-    %{ok, Req2, undefined}.
+
+filter_angle_brackets(Name) ->
+    % strip open and close for HTML tags.
+    << <<C>> || <<C>> <= Name, C /= 60, C /= 62 >>.
 
 check_empty_username(Name) ->
     case Name of
@@ -32,8 +38,9 @@ check_available_username(PlayerName, Player, Req) ->
         ok -> 
             io:format("Player ~s at PID ~w~n", [PlayerName, Player]),
             {ok, Req, Player};
-        _ ->
-            io:format("Duplicate name caught:  ~s~n", [PlayerName]),
+        not_available ->
+            
+            lager:warning("Duplicate name caught:  ~s", [PlayerName]),
             Player ! die,
             self() ! {updated, mochijson2:encode({struct, [{error, <<"That's someone else's name, choose a different one">>}]})},
             {ok, Req, undefined}
