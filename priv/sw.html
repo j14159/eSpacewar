@@ -18,16 +18,19 @@ var thrust = false;
 
 $(document).keydown(function(e) {
     switch(e.keyCode) {
-        case 87:
+        case 32:
             fire = true;
             break;
-        case 83:
+        case 38:
             thrust = true;
             break;
-        case 65:
+        case 40:
+            thrust = true;
+            break;
+        case 37:
             left = true;
             break;
-        case 68:
+        case 39:
             right = true;
             break;
         default:
@@ -39,16 +42,19 @@ $(document).keydown(function(e) {
 
 $(document).keyup(function(e) {
     switch(e.keyCode) {
-        case 87:
+        case 32:
             fire = false;
             break;
-        case 83:
+        case 38:
             thrust = false;
             break;
-        case 65:
+        case 40:
+            thrust = false;
+            break;
+        case 37:
             left = false;
             break;
-        case 68:
+        case 39:
             right = false;
             break;
         default:
@@ -109,6 +115,9 @@ function openWs()
         var received_msg = evt.data;
 
         var payload = JSON.parse(evt.data);
+
+        if(payload.error != undefined)
+            alert(payload.error);
 
         if(payload.score != undefined) {
             updateScores(payload.score);
@@ -267,10 +276,10 @@ function updateScores(scores) {
         Username: <input type=text id="playerName"/>
         <a href="#" onClick="openWs();">Start Playing</a><br/>
     </span>
-    a = rotate left<br/>
-    d = rotate right<br/>
-    s = thrust<br/>
-    w = fire torpedo<br/>
+    left = rotate left<br/>
+    right = rotate right<br/>
+    up/down = thrust<br/>
+    space = fire torpedo<br/>
 </div>
 <div>
     <canvas id="space" width="800" height="500" style="border:1px solid #000000; float:left;"></canvas>
