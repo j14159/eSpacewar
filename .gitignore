@@ -1,3 +1,6 @@
 ebin
 deps
+log/
+console.log
+error.log
 

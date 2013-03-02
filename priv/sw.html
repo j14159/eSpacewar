@@ -31,7 +31,7 @@ $(document).keydown(function(e) {
             right = true;
             break;
         default:
-            break;//console.log("unknown");
+            break;
     }
     
     send();
@@ -52,7 +52,7 @@ $(document).keyup(function(e) {
             right = false;
             break;
         default:
-            break;//console.log("unknown");
+            break;
     }
 
     send();
@@ -93,12 +93,10 @@ function openWs()
         alert("This browser does not support WebSockets");
         return;
     }
-    /* @todo: Change to your own server IP address */
-    //ws = new WebSocket("ws://172.18.146.201:8080/ws?player=" + encodeURIComponent(playerName));
+
     var url = "ws://" + document.domain + ":8080/ws?player=" + encodeURIComponent(playerName);
     console.log("Connecting to " + url + " for websocket");
     ws = new WebSocket(url);
-    //ws = new WebSocket("ws://localhost:8080/ws?player=" + );
 
     ws.onopen = function() {
         $("#loginBox").remove();
@@ -119,11 +117,10 @@ function openWs()
         if(payload.player != undefined) {
             payload.player.x = payload.player.x + 400;
             payload.player.y = payload.player.y + 250;
-            //console.log(payload.player.x + " x " + payload.player.y);
             updatePos(payload.player);
         }
 
-        if(payload.enemies != undefined) { // && payload.enemies.length > 0) {
+        if(payload.enemies != undefined) {
             clearEnemies(enemies);
             enemies = payload.enemies;
             enemies.forEach(function(e) {
@@ -204,7 +201,6 @@ function updatePos(payload) {
 
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(x-10, y-10, 20, 20);
-    //drawShip(ctx);
 
     heading = payload.z;
     x = payload.x;
