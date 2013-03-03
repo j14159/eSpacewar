@@ -13,7 +13,9 @@ space(Xsize, Ysize, Players, Torps, ScoreBoard) ->
 			% kill spent torps and adjust scores:
 			{StillTorping, HitTorps, PlanetTorps, Torped} = torping_and_torped(Torps, NotSuicided, Xsize, Ysize),
 			
-			lists:map(fun({Pid, _, _, _, _}) -> Pid ! hit end, HitTorps),
+			TorpAndKilled = lists:zip(HitTorps, Torped),
+
+			lists:map(fun({{Pid, _, _, _, _}, {HitShipPid, _, _, _, _}}) -> Pid ! {hit, HitShipPid} end, TorpAndKilled),
 			lists:map(fun({Pid, _, _, _, _}) -> Pid ! dead end, PlanetTorps),
 			lists:map(fun({Pid, _, _, _, _}) -> Pid ! tick end, StillTorping),
 			
@@ -72,7 +74,7 @@ moved_and_suicides(Players, Xsize, Ysize) ->
 torping_and_torped(Torps, Players, Xsize, Ysize) ->
 	Move = fun({P, X, Y, Z, V}) -> move_entity(P, X, Y, Z, planet_influence(X, Y, V, 8, Xsize, Ysize), Xsize, Ysize) end,
 	MovedTorps = lists:map(Move, Torps),
-	{Torped, HitTorps} = collisions(Players, MovedTorps, [], []),			
+	{Torped, HitTorps} = collisions(Players, MovedTorps, [], []),
 	{StillTorping, PlanetTorps} = planet_impacts(20, filter_dead(HitTorps, MovedTorps), [], []),
 
 	{StillTorping, HitTorps, PlanetTorps, Torped}.

@@ -9,13 +9,18 @@ torp(Space, Player, 0) ->
 	Space ! {dead_torp, self()},
 	0;
 torp(Space, Player, TicksRemaining) ->
+	Me = self(),
 	receive
 		tick ->
 			torp(Space, Player, TicksRemaining - 1);
 		dead ->
 			io:format("Torp killed by space~n", []),
 			torp(Space, Player, 0);
-		hit ->
+		{hit, Player} ->
+			%% this is a suicide
+			gen_server:cast(space_score, {Player, -1}),
+			torp(Space, Player, 0);
+		{hit, WhoDidWeHit} ->
 			io:format("Torp hit~n", []),
 			%whereis(space_score) ! {Player, 1},
 			gen_server:cast(space_score, {Player, 1}),
