@@ -9,23 +9,29 @@ init([]) ->
 %%
 %% Adding a player to the score board.
 %%
-handle_call({PlayerName, PlayerPid, WsProcess}, From, State) ->
-	{Status, NewState} = attempt_join(PlayerName, PlayerPid, State),
-	case Status of
-		not_available ->
+handle_call({PlayerName, WsProcess}, From, State) ->
+	case attempt_join(WsProcess, PlayerName, State) of
+		{not_available, State} ->
 			{reply, not_available, State};
-		ok ->
+		{ok, PlayerPid, NewState} ->
 			NewCount = length(NewState),
 			lager:info("Player joined:  ~s", [PlayerName]),
 			lager:info("Player count:  ~p", [NewCount]),
 			broadcast_score(NewState),
-			{reply, ok, NewState}
+			{reply, {ok, PlayerPid}, NewState}
 	end.
 
 %%
 %% Removing a player from the score board.
 %%
 handle_cast({remove, PlayerPid}, State) ->
+	case get_player(PlayerPid, State) of
+		{PlayerName, _, _} ->
+			lager:info("Removing player ~s", [PlayerName]);
+		not_found ->
+			lager:warning("Trying to remove pid ~w but can't find it", [PlayerPid])
+	end,
+
 	NewState = without_player(PlayerPid, State),
 	lager:info("Removing player for pid ~w, new length ~w", [PlayerPid, length(NewState)]),
 	broadcast_score(NewState),
@@ -64,13 +70,14 @@ broadcast_score(State) ->
 %%
 %% checks to see if the requested name is available for a new player.
 %%
-attempt_join(NewName, NewPid, State) ->
+attempt_join(WsPid, NewName, State) ->
 	Existing = [N || {N, _, _} <- State, N =:= NewName],
 	case Existing of
 		[H | T] when H == NewName ->
 			{not_available, State};
 		_ ->
-			{ok, [{NewName, NewPid, 0} | State]}
+			NewPid = spawn(player, player, [WsPid, 500, 800]),
+			{ok, NewPid, [{NewName, NewPid, 0} | State]}
 	end.
 
 %%

@@ -17,8 +17,8 @@ websocket_init(TransportName, Req, _Opts) ->
             self() ! {updated, mochijson2:encode({struct, [{error, <<"Empty usernames not allowed">>}]})},
             {ok, Req2, undefined};
         ok ->
-            Player = spawn(player, player, [self(), 500, 800]),
-            check_available_username(SafeName, Player, Req2)
+            %Player = spawn(player, player, [self(), 500, 800]),
+            check_available_username(SafeName, Req2)
     end.
 
 websocket_handle({text, Msg}, Req, State) ->
@@ -54,12 +54,13 @@ websocket_info(_Info, Req, State) ->
     {ok, Req, State}.
 
 websocket_terminate(Reason, Req, State) ->
-    lager:info("Disconnection, removing ~w~n", [State]),
+    lager:info("Disconnection, removing ~w", [State]),
     case State of
         undefined ->
             lager:warning("undefined State in disconnection", []),
             0;
         _ ->
+            lager:info("State in disconnection is OK"),
             State ! die,
             gen_server:cast(space_score, {remove, State})
     end,
@@ -78,14 +79,13 @@ check_empty_username(Name) ->
         _ -> ok
     end.
 
-check_available_username(PlayerName, Player, Req) ->
-    case gen_server:call(space_score, {PlayerName, Player, self()}) of
-        ok -> 
+check_available_username(PlayerName, Req) ->
+    case gen_server:call(space_score, {PlayerName, self()}) of
+        {ok, Player} -> 
             io:format("Player ~s at PID ~w~n", [PlayerName, Player]),
             {ok, Req, Player};
         not_available ->                
             lager:warning("Duplicate name caught:  ~s", [PlayerName]),
-            Player ! die,
             self() ! {updated, mochijson2:encode({struct, [{error, <<"That's someone else's name, choose a different one">>}]})},
             {ok, Req, undefined}
     end.
