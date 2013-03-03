@@ -18,7 +18,8 @@ space(Xsize, Ysize, Players, Torps, ScoreBoard) ->
 			lists:map(fun({Pid, _, _, _, _}) -> Pid ! tick end, StillTorping),
 			
 			%adjust scores for suicides:
-			lists:map(fun({Pid, _, _, _, _}) -> ScoreBoard ! {Pid, -1} end, Suicided),
+			lists:map(fun({Pid, _, _, _, _}) -> gen_server:cast(space_score, {Pid, -1}) end, Suicided),
+				%ScoreBoard ! {Pid, -1} end, Suicided),
 
 			Dead1 = lists:flatten([Suicided | Torped]),
 			NotDead1 = filter_dead(Dead1, NotSuicided),

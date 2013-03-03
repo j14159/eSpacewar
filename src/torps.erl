@@ -17,7 +17,8 @@ torp(Space, Player, TicksRemaining) ->
 			torp(Space, Player, 0);
 		hit ->
 			io:format("Torp hit~n", []),
-			whereis(space_score) ! {Player, 1},
+			%whereis(space_score) ! {Player, 1},
+			gen_server:cast(space_score, {Player, 1}),
 			torp(Space, Player, 0);
 		_ ->
 			torp(Space, Player, TicksRemaining)

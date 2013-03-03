@@ -25,7 +25,8 @@ start(_StartType, _StartArgs) ->
 		[{env, [{dispatch, Dispatch}]}]
 		),
 	lager:start(),
-	spawn(score_board, score_board, []),
+	%spawn(score_board, score_board, []),
+	gen_server:start_link({local, space_score}, score_board, [], []),
 	spawn(space, space, [800, 500]),	
 	spacewar1_sup:start_link().
 

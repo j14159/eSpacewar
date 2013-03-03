@@ -21,31 +21,6 @@ websocket_init(TransportName, Req, _Opts) ->
             check_available_username(SafeName, Player, Req2)
     end.
 
-filter_angle_brackets(Name) ->
-    % strip open and close for HTML tags.
-    << <<C>> || <<C>> <= Name, C /= 60, C /= 62 >>.
-
-check_empty_username(Name) ->
-    case Name of
-        <<"">> ->
-            empty;
-        _ -> ok
-    end.
-
-check_available_username(PlayerName, Player, Req) ->
-    whereis(space_score) ! {PlayerName, Player, self()},
-    receive
-        ok -> 
-            io:format("Player ~s at PID ~w~n", [PlayerName, Player]),
-            {ok, Req, Player};
-        not_available ->
-            
-            lager:warning("Duplicate name caught:  ~s", [PlayerName]),
-            Player ! die,
-            self() ! {updated, mochijson2:encode({struct, [{error, <<"That's someone else's name, choose a different one">>}]})},
-            {ok, Req, undefined}
-    end.
-
 websocket_handle({text, Msg}, Req, State) ->
     case Msg of
         <<"1", _, _, _>> ->
@@ -79,12 +54,39 @@ websocket_info(_Info, Req, State) ->
     {ok, Req, State}.
 
 websocket_terminate(Reason, Req, State) ->
-    io:format("Disconnection, removing ~w~n", [State]),
+    lager:info("Disconnection, removing ~w~n", [State]),
     case State of
         undefined ->
+            lager:warning("undefined State in disconnection", []),
             0;
         _ ->
             State ! die,
-            whereis(space_score) ! {remove, State}
+            gen_server:cast(space_score, {remove, State})
     end,
     ok.
+
+%%
+%% strips out < and > in case user's submitted HTML/scripts.
+%%
+filter_angle_brackets(Name) ->
+    << <<C>> || <<C>> <= Name, C /= 60, C /= 62 >>.
+
+check_empty_username(Name) ->
+    case Name of
+        <<"">> ->
+            empty;
+        _ -> ok
+    end.
+
+check_available_username(PlayerName, Player, Req) ->
+    case gen_server:call(space_score, {PlayerName, Player, self()}) of
+        ok -> 
+            io:format("Player ~s at PID ~w~n", [PlayerName, Player]),
+            {ok, Req, Player};
+        not_available ->                
+            lager:warning("Duplicate name caught:  ~s", [PlayerName]),
+            Player ! die,
+            self() ! {updated, mochijson2:encode({struct, [{error, <<"That's someone else's name, choose a different one">>}]})},
+            {ok, Req, undefined}
+    end.
+
