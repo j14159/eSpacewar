@@ -27,6 +27,7 @@ handle_call({PlayerName, WsProcess}, From, State) ->
 handle_cast({remove, PlayerPid}, State) ->
 	case get_player(PlayerPid, State) of
 		{PlayerName, _, _} ->
+			gen_server:cast(play_space, {dead, PlayerPid}),
 			lager:info("Removing player ~s", [PlayerName]);
 		not_found ->
 			lager:warning("Trying to remove pid ~w but can't find it", [PlayerPid])
@@ -68,7 +69,8 @@ broadcast_score(State) ->
 	lists:map(fun({_, Pid, _}) -> Pid ! {score, CleanScore} end, State).
 
 %%
-%% checks to see if the requested name is available for a new player.
+%% checks to see if the requested name is available for a new player and if so,
+%% creates a new player process.
 %%
 attempt_join(WsPid, NewName, State) ->
 	Existing = [N || {N, _, _} <- State, N =:= NewName],

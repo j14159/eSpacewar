@@ -1,72 +1,77 @@
 -module(space).
--export([space/2]).
+-behavior(gen_server).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, code_change/3, terminate/2]).
+-compile([{parse_transform, lager_transform}]).
 
-space(Xsize, Ysize) ->
-	register(play_space, self()),
+init([Xsize, Ysize]) ->
 	timer:send_after(50, update),
-	space(Xsize, Ysize, [], [], whereis(space_score)).
+	{ok, {Xsize, Ysize, [], []}}.
 
-space(Xsize, Ysize, Players, Torps, ScoreBoard) ->
-	receive
-		update ->
-			{NotSuicided, Suicided} = moved_and_suicides(Players, Xsize, Ysize),
-			% kill spent torps and adjust scores:
-			{StillTorping, HitTorps, PlanetTorps, Torped} = torping_and_torped(Torps, NotSuicided, Xsize, Ysize),
-			
-			TorpAndKilled = lists:zip(HitTorps, Torped),
+handle_call(Message, From, State) ->
+	{reply, ok, State}.
+		
+handle_cast({dead_torp, Pid}, {Xsize, Ysize, Players, Torps}) ->
+	LiveTorps = [{P, X, Y, Z, V} || {P, X, Y, Z, V} <- Torps, P /= Pid],
+	{noreply, {Xsize, Ysize, Players, LiveTorps}};
 
-			lists:map(fun({{Pid, _, _, _, _}, {HitShipPid, _, _, _, _}}) -> Pid ! {hit, HitShipPid} end, TorpAndKilled),
-			lists:map(fun({Pid, _, _, _, _}) -> Pid ! dead end, PlanetTorps),
-			lists:map(fun({Pid, _, _, _, _}) -> Pid ! tick end, StillTorping),
-			
-			%adjust scores for suicides:
-			lists:map(fun({Pid, _, _, _, _}) -> gen_server:cast(space_score, {Pid, -1}) end, Suicided),
-				%ScoreBoard ! {Pid, -1} end, Suicided),
+handle_cast({dead, Pid}, {Xsize, Ysize, Players, Torps}) ->
+	Filtered = [{P, XX, YY, ZZ, V} || {P, XX, YY, ZZ, V} <- Players, P /= Pid],
+	{noreply, {Xsize, Ysize, Filtered, Torps}};
 
-			Dead1 = lists:flatten([Suicided | Torped]),
-			NotDead1 = filter_dead(Dead1, NotSuicided),
-
-			{NotDead, Dead2} = planet_impacts(20, NotDead1, [], []),
-			Dead = lists:flatten([Dead1 | Dead2]),
-			
-			msg_players(NotDead, NotDead, StillTorping),
-			% tell dead players they're dead:
-			lists:map(fun({Pid, _, _, _, _}) -> Pid ! dead end, Dead),
-			
-			timer:send_after(50, update),
-			space(Xsize, Ysize, NotDead, StillTorping, ScoreBoard);
-		{dead_torp, Pid} ->
-			LiveTorps = [{P, X, Y, Z, V} || {P, X, Y, Z, V} <- Torps, P /= Pid],
-			space(Xsize, Ysize, Players, LiveTorps, ScoreBoard);
-		% a player is removing themselves:
-		{dead, Pid} ->
-			Filtered = 
-				[{P, XX, YY, ZZ, V} || {P, XX, YY, ZZ, V} <- Players, P /= Pid],
-			space(Xsize, Ysize, Filtered, Torps, ScoreBoard);
-		% a player is updating space with attitude + desired control:
-		{Pid, X, Y, Z, Vec} ->
-			Filtered = [{P, XX, YY, ZZ, V} || {P, XX, YY, ZZ, V} <- Players, P /= Pid],
-			case [{P, XX, YY, ZZ, V} || {P, XX, YY, ZZ, V} <- Players, P == Pid] of
-				[{_, _, _, _, V}] ->
-					space(Xsize, Ysize, [{Pid, X, Y, Z, movement:clampedAddMatrix(Vec, V, 4)} | Filtered], Torps, ScoreBoard);
-				_ ->
-					space(Xsize, Ysize, [{Pid, X, Y, Z, Vec} | Filtered], Torps, ScoreBoard)
-			end;
-		% a player fired a torpedo
-		{torp, T} ->
-			space(Xsize, Ysize, Players, [T | Torps], ScoreBoard);
+handle_cast({Pid, X, Y, Z, Vec}, {Xsize, Ysize, Players, Torps}) ->
+	Filtered = [{P, XX, YY, ZZ, V} || {P, XX, YY, ZZ, V} <- Players, P /= Pid],
+	case [{P, XX, YY, ZZ, V} || {P, XX, YY, ZZ, V} <- Players, P == Pid] of
+		[{_, _, _, _, V}] ->
+			{noreply, {Xsize, Ysize, [{Pid, X, Y, Z, movement:clampedAddMatrix(Vec, V, 4)} | Filtered], Torps}};
 		_ ->
-			0
-	end.
+			{noreply, {Xsize, Ysize, [{Pid, X, Y, Z, Vec} | Filtered], Torps}}
+	end;
+
+handle_cast({torp, T}, {Xsize, Ysize, Players, Torps}) ->
+	% a player fired a torpedo
+	{noreply, {Xsize, Ysize, Players, [T | Torps]}}.
+
+handle_info(update, {Xsize, Ysize, Players, Torps}) ->
+	{NotSuicided, Suicided} = moved_and_suicides(Players, Xsize, Ysize),
+	% kill spent torps and adjust scores:
+	{StillTorping, HitTorps, PlanetTorps, Torped} = torping_and_torped(Torps, NotSuicided, Xsize, Ysize),
+	
+	TorpAndKilled = lists:zip(HitTorps, Torped),
+	
+	lists:map(fun({{Pid, _, _, _, _}, {HitShipPid, _, _, _, _}}) -> Pid ! {hit, HitShipPid} end, TorpAndKilled),
+	lists:map(fun({Pid, _, _, _, _}) -> Pid ! dead end, PlanetTorps),
+	lists:map(fun({Pid, _, _, _, _}) -> Pid ! tick end, StillTorping),
+	
+	%adjust scores for suicides:
+	lists:map(fun({Pid, _, _, _, _}) -> gen_server:cast(space_score, {Pid, -1}) end, Suicided),
+	
+	Dead1 = lists:flatten([Suicided | Torped]),
+	NotDead1 = filter_dead(Dead1, NotSuicided),
+	
+	{NotDead, Dead2} = planet_impacts(20, NotDead1, [], []),
+	Dead = lists:flatten([Dead1 | Dead2]),
+	
+	msg_players(NotDead, NotDead, StillTorping),
+	% tell dead players they're dead:
+	lists:map(fun({Pid, _, _, _, _}) -> Pid ! dead end, Dead),
+	
+	timer:send_after(50, update),
+	{noreply, {Xsize, Ysize, NotDead, StillTorping}}.
+
+code_change(PrevVersion, State, Extra) ->
+	{ok, State}.
+
+terminate(Reason, State) ->
+	ok.
 
 %returns {moved and live players, players who collided with other players}
 moved_and_suicides(Players, Xsize, Ysize) ->
 	Move = fun({P, X, Y, Z, V}) -> move_entity(P, X, Y, Z, planet_influence(X, Y, V, 8, Xsize, Ysize), Xsize, Ysize) end,
-			
+	
 	MovedPlayers = lists:map(Move, Players),			
 	% now check collisions:
 	{Suicided, _} = collisions(MovedPlayers, MovedPlayers, [], []),
-			
+	
 	% get a list of *live* enemies for display:
 	NotSuicided = filter_dead(Suicided, MovedPlayers),
 	{NotSuicided, Suicided}.
@@ -76,7 +81,7 @@ torping_and_torped(Torps, Players, Xsize, Ysize) ->
 	MovedTorps = lists:map(Move, Torps),
 	{Torped, HitTorps} = collisions(Players, MovedTorps, [], []),
 	{StillTorping, PlanetTorps} = planet_impacts(20, filter_dead(HitTorps, MovedTorps), [], []),
-
+	
 	{StillTorping, HitTorps, PlanetTorps, Torped}.
 
 % change an entities vector based on planetary gravity.

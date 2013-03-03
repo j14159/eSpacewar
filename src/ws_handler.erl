@@ -17,7 +17,6 @@ websocket_init(TransportName, Req, _Opts) ->
             self() ! {updated, mochijson2:encode({struct, [{error, <<"Empty usernames not allowed">>}]})},
             {ok, Req2, undefined};
         ok ->
-            %Player = spawn(player, player, [self(), 500, 800]),
             check_available_username(SafeName, Req2)
     end.
 
