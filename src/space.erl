@@ -77,7 +77,7 @@ moved_and_suicides(Players, Xsize, Ysize) ->
 	{NotSuicided, Suicided}.
 
 torping_and_torped(Torps, Players, Xsize, Ysize) ->
-	Move = fun({P, X, Y, Z, V}) -> move_entity(P, X, Y, Z, planet_influence(X, Y, V, 8, Xsize, Ysize), Xsize, Ysize) end,
+	Move = fun({P, X, Y, Z, V}) -> move_entity(P, X, Y, Z, planet_influence(X, Y, V, 20, Xsize, Ysize), Xsize, Ysize) end,
 	MovedTorps = lists:map(Move, Torps),
 	{Torped, HitTorps} = collisions(Players, MovedTorps, [], []),
 	{StillTorping, PlanetTorps} = planet_impacts(20, filter_dead(HitTorps, MovedTorps), [], []),
@@ -87,7 +87,7 @@ torping_and_torped(Torps, Players, Xsize, Ysize) ->
 % change an entities vector based on planetary gravity.
 planet_influence(X, Y, Vec, Mass, SpaceW, SpaceH) ->
 	Distance = math:sqrt((X * X) + (Y * Y)),
-	PlanetEffect = Mass * (1 / (Distance * Distance)),
+	PlanetEffect = ((Mass * 1) / (Distance * Distance)),
 	{FullX, FullY} = {0 - X, 0 - Y},
 	PlanetVector = {{X, Y}, {PlanetEffect * FullX, PlanetEffect * FullY}},
 	movement:addMatrix(Vec, PlanetVector).

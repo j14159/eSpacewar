@@ -54,7 +54,7 @@ player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps, Xsize, Ysize) -
 			player(Master, {X, Y, Heading}, Vector, done, LiveTorps, Xsize, Ysize);
 		torp when LiveTorps < 3 ->
 			Torp = spawn(torps, torp, [self()]),
-			TorpVec = movement:nextMatrix(scaled, Heading, 8, X, Y),
+			TorpVec = movement:nextMatrix(torp, Heading, 8, X, Y),
 			% this is a gross way to place the torp, needs fixing
 			%Tv = movement:addMatrix(movement:addMatrix(movement:addMatrix(Vector, TorpVec), TorpVec), TorpVec),
 			{Tx1, Ty1} = move(X, Y, TorpVec, 4),

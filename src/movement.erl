@@ -22,10 +22,15 @@ nextMatrix(Angle, X, Y) ->
     nextMatrix(scaled, Angle, 0.5, X, Y).
 
 nextMatrix(scaled, Angle, Scaling, X, Y) ->
-    X2 = 0 + Scaling * math:cos(radians(Angle)),
-    Y2 = 0 + Scaling * math:sin(radians(Angle)),
-    {{X, Y}, {clampVector(X2), clampVector(Y2)}}.
+    X2 = 0 + (Scaling * math:cos(radians(Angle))),
+    Y2 = 0 + (Scaling * math:sin(radians(Angle))),
+    {{X, Y}, {clampVector(X2), clampVector(Y2)}};
     
+nextMatrix(torp, Angle, Scaling, X, Y) ->
+    X2 = 0 + (Scaling * math:cos(radians(Angle))),
+    Y2 = 0 + (Scaling * math:sin(radians(Angle))),
+    {{X, Y}, {X2, Y2}}.
+
 clampVector(V) ->
     clampVector(V, 4).
 
