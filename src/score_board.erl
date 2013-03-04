@@ -3,6 +3,12 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, code_change/3, terminate/2]).
 -compile([{parse_transform, lager_transform}]).
 
+%%%----------------------------------------------------------------------
+%%%
+%%% "score_board" is just what the name suggests, in addition to being 
+%%% the central player registry.
+%%%
+%%%----------------------------------------------------------------------
 init([]) ->
 	{ok, []}.
 
@@ -75,7 +81,7 @@ broadcast_score(State) ->
 attempt_join(WsPid, NewName, State) ->
 	Existing = [N || {N, _, _} <- State, N =:= NewName],
 	case Existing of
-		[H | T] when H == NewName ->
+		[H | _] when H == NewName ->
 			{not_available, State};
 		_ ->
 			NewPid = spawn(player, player, [WsPid, 500, 800]),

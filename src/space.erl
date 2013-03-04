@@ -3,6 +3,14 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, code_change/3, terminate/2]).
 -compile([{parse_transform, lager_transform}]).
 
+%%%----------------------------------------------------------------------
+%%%
+%%% "space" module is where the core movement and collision logic all
+%%% takes place.  It is responsible for enforcing the basic game physics
+%%% and ultimately governs combat/kill resolution.
+%%%
+%%%----------------------------------------------------------------------
+
 init([Xsize, Ysize]) ->
 	timer:send_after(50, update),
 	{ok, {Xsize, Ysize, [], []}}.
@@ -15,7 +23,10 @@ handle_cast({dead_torp, Pid}, {Xsize, Ysize, Players, Torps}) ->
 	{noreply, {Xsize, Ysize, Players, LiveTorps}};
 
 handle_cast({dead, Pid}, {Xsize, Ysize, Players, Torps}) ->
+	% heavier logging here to track down phantom player bug
+	lager:info("space will remove pid ~w as dead, pre-filter player length is ~w", [Pid, length(Players)]),
 	Filtered = [{P, XX, YY, ZZ, V} || {P, XX, YY, ZZ, V} <- Players, P /= Pid],
+	lager:info("post-filter player length is ~w", [length(Filtered)]),
 	{noreply, {Xsize, Ysize, Filtered, Torps}};
 
 handle_cast({Pid, X, Y, Z, Vec}, {Xsize, Ysize, Players, Torps}) ->
@@ -61,12 +72,12 @@ handle_info(update, {Xsize, Ysize, Players, Torps}) ->
 code_change(PrevVersion, State, Extra) ->
 	{ok, State}.
 
-terminate(Reason, State) ->
+terminate(Reason, _) ->
 	ok.
 
-%returns {moved and live players, players who collided with other players}
+%% returns {moved and live players, players who collided with other players}
 moved_and_suicides(Players, Xsize, Ysize) ->
-	Move = fun({P, X, Y, Z, V}) -> move_entity(P, X, Y, Z, planet_influence(X, Y, V, 8, Xsize, Ysize), Xsize, Ysize) end,
+	Move = fun({P, X, Y, Z, V}) -> move_entity(P, X, Y, Z, planet_influence(X, Y, V, 8), Xsize, Ysize) end,
 	
 	MovedPlayers = lists:map(Move, Players),			
 	% now check collisions:
@@ -76,25 +87,27 @@ moved_and_suicides(Players, Xsize, Ysize) ->
 	NotSuicided = filter_dead(Suicided, MovedPlayers),
 	{NotSuicided, Suicided}.
 
+%% figures out which torpedoes are still live, which have hit players and planet,
+%% which players have been killed.
 torping_and_torped(Torps, Players, Xsize, Ysize) ->
-	Move = fun({P, X, Y, Z, V}) -> move_entity(P, X, Y, Z, planet_influence(X, Y, V, 20, Xsize, Ysize), Xsize, Ysize) end,
+	Move = fun({P, X, Y, Z, V}) -> move_entity(P, X, Y, Z, planet_influence(X, Y, V, 20), Xsize, Ysize) end,
 	MovedTorps = lists:map(Move, Torps),
 	{Torped, HitTorps} = collisions(Players, MovedTorps, [], []),
 	{StillTorping, PlanetTorps} = planet_impacts(20, filter_dead(HitTorps, MovedTorps), [], []),
 	
 	{StillTorping, HitTorps, PlanetTorps, Torped}.
 
-% change an entities vector based on planetary gravity.
-planet_influence(X, Y, Vec, Mass, SpaceW, SpaceH) ->
+%% change an entities vector based on planetary gravity.
+planet_influence(X, Y, Vec, Mass) ->
 	Distance = math:sqrt((X * X) + (Y * Y)),
 	PlanetEffect = ((Mass * 1) / (Distance * Distance)),
 	{FullX, FullY} = {0 - X, 0 - Y},
 	PlanetVector = {{X, Y}, {PlanetEffect * FullX, PlanetEffect * FullY}},
 	movement:addMatrix(Vec, PlanetVector).
 
-% takes a list of entities (ships/torps) and recursively checks to see which
-% ones are OK and which ones hit the planet.
-planet_impacts(PlanetSize, [], Ok, Dead) ->
+%% takes a list of entities (ships/torps) and recursively checks to see which
+%% ones are OK and which ones hit the planet.
+planet_impacts(_, [], Ok, Dead) ->
 	{Ok, Dead};
 planet_impacts(PlanetSize, [Entity | Rest], Ok, Dead) ->
 	case planet_impact(Entity, PlanetSize) of
@@ -113,8 +126,8 @@ planet_impact(Entity, PSize) ->
 			ok
 	end.
 
-% finds all ships involved in collisions, sub-optimal, runs in O(n^2) at best:
-collisions([], Players, Dead, ToRemove) ->
+%% finds all entities involved in collisions, sub-optimal, runs in O(n^2) at best:
+collisions([], _, Dead, ToRemove) ->
 	{Dead, ToRemove};
 collisions([Ship | Rest], Players, Dead, ToRemove) ->
 	NewDead = collision_check(Ship, [P || P <- Players, P /= Ship]),
@@ -125,19 +138,19 @@ collisions([Ship | Rest], Players, Dead, ToRemove) ->
 			collisions(Rest, Players, [Ship | Dead], [Remove | ToRemove])
 	end.
 
-% checks an individual ship for collisions against the others:
+%% checks an individual entity for collisions against the others:
 collision_check(Ship, Others) ->
-	{Pid, X, Y, _, _} = Ship,
+	{_, X, Y, _, _} = Ship,
 	Hits = [{P, X2, Y2 ,Z2, V} || {P, X2, Y2, Z2, V} <- Others, abs(X - X2) =< 5, abs(Y - Y2) =< 5],
 	case Hits of
-		[H | T] ->
+		[H | _] ->
 			io:format("Impacting object ~w~n", [H]),
 			{Ship, H};
 		_ ->
 			{none, []}
 	end.
 
-% filters the list of dead players out of active ones
+%% filters the list of dead entities out of active ones
 filter_dead([], Players) ->
 	Players;
 filter_dead([FirstDead | Rest], Players) ->
@@ -145,7 +158,7 @@ filter_dead([FirstDead | Rest], Players) ->
 	Filtered = [{Pid, X, Y, Z, V} || {Pid, X, Y, Z, V} <- Players, Pid /= DeadPid],
 	filter_dead(Rest, Filtered).
 
-% recurses through player list to broadcast enemy locations:
+%% recurses through player list to broadcast enemy and torpedo locations:
 msg_players([], _, _) ->
 	[];
 msg_players([P | Rest], Players, Torps) ->
@@ -155,11 +168,13 @@ msg_players([P | Rest], Players, Torps) ->
 	Pid ! Msg,
 	msg_players(Rest, Players, Torps).
 
+%% moves an entity, obviously.  Declared here to avoid anonymous functions 
+%% being constantly re-declared.
 move_entity(Pid, X, Y, Z, V, Xsize, Ysize) ->
 	{X2, Y2} = movement:move({X, Y}, V),
 	{Pid, valid_space(X2, Xsize), valid_space(Y2, Ysize), Z, V}.
 
-% clamps space coordinates FIXME:  magic numbers
+%% clamps space coordinates, does wrap-around.
 valid_space(C, Size) ->
 	case C of
 		C when C >= (Size / 2) ->

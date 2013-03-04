@@ -26,19 +26,19 @@ websocket_handle({text, Msg}, Req, State) ->
             State ! {attitude, -1};
         <<_, "1", _, _>> ->
             State ! {attitude, 1};
-        _ -> 0
+        _ -> Msg
     end,
     
     case Msg of
         <<_, _, "1", _>> ->
             State ! thrust;
-        _ -> 0
+        _ -> Msg
     end,
     
     case Msg of
         <<_, _, _, "1">> ->
             State ! torp;
-        _ -> 0
+        _ -> Msg
     end,
     
     {ok, Req, State};

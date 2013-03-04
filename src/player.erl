@@ -48,15 +48,10 @@ player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps, Xsize, Ysize) -
 			{{_, _}, {NvX, NvY}} = movement:addMatrix(Vector, movement:nextMatrix(scaled, Heading, 1, X, Y)),
 			Vec = {{X, Y}, {NvX, NvY}},
 			gen_server:cast(play_space, {self(), X, Y, Heading, Vec}),
-			%player(Master, {X, Y, Heading}, {{X, Y}, 
-			%		{movement:clampVector(NvX), 
-			%			movement:clampVector(NvY)}}, done, LiveTorps, Xsize, Ysize);
 			player(Master, {X, Y, Heading}, Vector, done, LiveTorps, Xsize, Ysize);
 		torp when LiveTorps < 3 ->
 			Torp = spawn(torps, torp, [self()]),
 			TorpVec = movement:nextMatrix(torp, Heading, 8, X, Y),
-			% this is a gross way to place the torp, needs fixing
-			%Tv = movement:addMatrix(movement:addMatrix(movement:addMatrix(Vector, TorpVec), TorpVec), TorpVec),
 			{Tx1, Ty1} = move(X, Y, TorpVec, 4),
 			
 			gen_server:cast(play_space, {torp, {Torp, Tx1, Ty1, 0, TorpVec}}),
@@ -102,7 +97,6 @@ entity_struct(X, Y, Z) ->
 
 group_struct(Group) ->
 	Compacted = [{X, Y, Z} || {_, X, Y, Z, _} <- Group],
-	%{struct, lists:map(fun({X, Y, Z}) -> entity_struct(X, Y, Z) end, Compacted)}.
 	lists:map(fun({X, Y, Z}) -> entity_struct(X, Y, Z) end, Compacted).
 
 % used when a player is dead/inactive:

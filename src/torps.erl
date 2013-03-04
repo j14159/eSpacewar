@@ -1,6 +1,12 @@
 -module(torps).
 -export([torp/1]).
 
+%%%----------------------------------------------------------------------
+%%%
+%%% Each live torpedo is tracked by an instance of this module/process.
+%%%
+%%%----------------------------------------------------------------------
+
 torp(Player) ->
 	torp(Player, 100).
 
@@ -17,12 +23,12 @@ torp(Player, TicksRemaining) ->
 			io:format("Torp killed by space~n", []),
 			torp(Player, 0);
 		{hit, Player} ->
-			%% this is a suicide
+			%% if a player hits themself with their own torpedo,
+			%% it's considered a suicide.
 			gen_server:cast(space_score, {Player, -1}),
 			torp(Player, 0);
 		{hit, WhoDidWeHit} ->
 			io:format("Torp hit~n", []),
-			%whereis(space_score) ! {Player, 1},
 			gen_server:cast(space_score, {Player, 1}),
 			torp(Player, 0);
 		_ ->

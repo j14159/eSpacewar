@@ -12,7 +12,6 @@
 start(_StartType, _StartArgs) ->
 	Dispatch = cowboy_router:compile([
 				{'_', [
-						{"/", test_handler, []},
 						{"/ws", ws_handler, []},
 						{"/[...]", cowboy_static, [
 								{directory, {priv_dir, spacewar1, []}},

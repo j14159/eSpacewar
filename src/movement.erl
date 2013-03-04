@@ -8,11 +8,19 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
+%%%----------------------------------------------------------------------
+%%%
+%%% "movement" is one of the earliest modules in this project and it 
+%%% probably shows.  Functions here assist in calculating vectors based
+%%% on current player attitude, assist with upper bounds on vectors and
+%%% simple 2x2 matrix addition.
+%%%
+%%%----------------------------------------------------------------------
+
 radians(Degrees) ->
     3.14159 * Degrees / 180.
 
 degrees(Radians) ->
-    %Radians * 0.017453292519.
     Radians * 180 / 3.14159.
 
 startMatrix(X, Y) ->
