@@ -31,6 +31,9 @@ player(Master, _, _, dead, _, Xsize, Ysize) ->
 		{score, Score} ->
 			Master ! {updated, score_payload(Score)},
 			player(Master, {0, 0, 0}, none, dead, 0, Xsize, Ysize);
+		die ->
+			gen_server:cast(play_space, {dead, self()}),
+			0;
 		_ ->
 			player(Master, {0, 0, 0}, none, dead, 0, Xsize, Ysize)
 	end;
