@@ -11,41 +11,41 @@
 %%%
 %%%----------------------------------------------------------------------
 
-init([Xsize, Ysize]) ->
+init([Xsize, Ysize, PlanetSize, ShipMass, TorpMass]) ->
 	timer:send_after(50, update),
-	{ok, {Xsize, Ysize, [], []}}.
+	{ok, {{Xsize, Ysize, {PlanetSize, ShipMass, TorpMass}}, [], []}}.
 
 handle_call(Message, From, State) ->
 	{reply, ok, State}.
 		
-handle_cast({dead_torp, Pid}, {Xsize, Ysize, Players, Torps}) ->
+handle_cast({dead_torp, Pid}, {Config, Players, Torps}) ->
 	LiveTorps = [{P, X, Y, Z, V} || {P, X, Y, Z, V} <- Torps, P /= Pid],
-	{noreply, {Xsize, Ysize, Players, LiveTorps}};
+	{noreply, {Config, Players, LiveTorps}};
 
-handle_cast({dead, Pid}, {Xsize, Ysize, Players, Torps}) ->
+handle_cast({dead, Pid}, {Config, Players, Torps}) ->
 	% heavier logging here to track down phantom player bug
 	lager:info("space will remove pid ~w as dead, pre-filter player length is ~w", [Pid, length(Players)]),
 	Filtered = [{P, XX, YY, ZZ, V} || {P, XX, YY, ZZ, V} <- Players, P /= Pid],
 	lager:info("post-filter player length is ~w", [length(Filtered)]),
-	{noreply, {Xsize, Ysize, Filtered, Torps}};
+	{noreply, {Config, Filtered, Torps}};
 
-handle_cast({Pid, X, Y, Z, Vec}, {Xsize, Ysize, Players, Torps}) ->
+handle_cast({Pid, X, Y, Z, Vec}, {Config, Players, Torps}) ->
 	Filtered = [{P, XX, YY, ZZ, V} || {P, XX, YY, ZZ, V} <- Players, P /= Pid],
 	case [{P, XX, YY, ZZ, V} || {P, XX, YY, ZZ, V} <- Players, P == Pid] of
 		[{_, _, _, _, V}] ->
-			{noreply, {Xsize, Ysize, [{Pid, X, Y, Z, movement:clampedAddMatrix(Vec, V, 4)} | Filtered], Torps}};
+			{noreply, {Config, [{Pid, X, Y, Z, movement:clampedAddMatrix(Vec, V, 4)} | Filtered], Torps}};
 		_ ->
-			{noreply, {Xsize, Ysize, [{Pid, X, Y, Z, Vec} | Filtered], Torps}}
+			{noreply, {Config, [{Pid, X, Y, Z, Vec} | Filtered], Torps}}
 	end;
 
-handle_cast({torp, T}, {Xsize, Ysize, Players, Torps}) ->
+handle_cast({torp, T}, {Config, Players, Torps}) ->
 	% a player fired a torpedo
-	{noreply, {Xsize, Ysize, Players, [T | Torps]}}.
+	{noreply, {Config, Players, [T | Torps]}}.
 
-handle_info(update, {Xsize, Ysize, Players, Torps}) ->
-	{NotSuicided, Suicided} = moved_and_suicides(Players, Xsize, Ysize),
+handle_info(update, {Config, Players, Torps}) ->
+	{NotSuicided, Suicided} = moved_and_suicides(Players, Config),
 	% kill spent torps and adjust scores:
-	{StillTorping, HitTorps, PlanetTorps, Torped} = torping_and_torped(Torps, NotSuicided, Xsize, Ysize),
+	{StillTorping, HitTorps, PlanetTorps, Torped} = torping_and_torped(Torps, NotSuicided, Config),
 	
 	TorpAndKilled = lists:zip(HitTorps, Torped),
 	
@@ -59,7 +59,8 @@ handle_info(update, {Xsize, Ysize, Players, Torps}) ->
 	Dead1 = lists:flatten([Suicided | Torped]),
 	NotDead1 = filter_dead(Dead1, NotSuicided),
 	
-	{NotDead, Dead2} = planet_impacts(20, NotDead1, [], []),
+	{_, _, {PlanetSize, _, _}} = Config,
+	{NotDead, Dead2} = planet_impacts(PlanetSize, NotDead1, [], []),
 	Dead = lists:flatten([Dead1 | Dead2]),
 	
 	msg_players(NotDead, NotDead, StillTorping),
@@ -67,7 +68,7 @@ handle_info(update, {Xsize, Ysize, Players, Torps}) ->
 	lists:map(fun({Pid, _, _, _, _}) -> Pid ! dead end, Dead),
 	
 	timer:send_after(50, update),
-	{noreply, {Xsize, Ysize, NotDead, StillTorping}}.
+	{noreply, {Config, NotDead, StillTorping}}.
 
 code_change(PrevVersion, State, Extra) ->
 	{ok, State}.
@@ -76,8 +77,8 @@ terminate(Reason, _) ->
 	ok.
 
 %% returns {moved and live players, players who collided with other players}
-moved_and_suicides(Players, Xsize, Ysize) ->
-	Move = fun({P, X, Y, Z, V}) -> move_entity(P, X, Y, Z, planet_influence(X, Y, V, 8), Xsize, Ysize) end,
+moved_and_suicides(Players, {Xsize, Ysize, {_, ShipMass, _}}) ->
+	Move = fun({P, X, Y, Z, V}) -> move_entity(P, X, Y, Z, planet_influence(X, Y, V, ShipMass), Xsize, Ysize) end,
 	
 	MovedPlayers = lists:map(Move, Players),			
 	% now check collisions:
@@ -89,16 +90,17 @@ moved_and_suicides(Players, Xsize, Ysize) ->
 
 %% figures out which torpedoes are still live, which have hit players and planet,
 %% which players have been killed.
-torping_and_torped(Torps, Players, Xsize, Ysize) ->
-	Move = fun({P, X, Y, Z, V}) -> move_entity(P, X, Y, Z, planet_influence(X, Y, V, 20), Xsize, Ysize) end,
+torping_and_torped(Torps, Players, {Xsize, Ysize, {PlanetSize, _, TorpMass}}) ->
+	Move = fun({P, X, Y, Z, V}) -> move_entity(P, X, Y, Z, planet_influence(X, Y, V, TorpMass), Xsize, Ysize) end,
 	MovedTorps = lists:map(Move, Torps),
 	{Torped, HitTorps} = collisions(Players, MovedTorps, [], []),
-	{StillTorping, PlanetTorps} = planet_impacts(20, filter_dead(HitTorps, MovedTorps), [], []),
+	{StillTorping, PlanetTorps} = planet_impacts(PlanetSize, filter_dead(HitTorps, MovedTorps), [], []),
 	
 	{StillTorping, HitTorps, PlanetTorps, Torped}.
 
 %% change an entities vector based on planetary gravity.
 planet_influence(X, Y, Vec, Mass) ->
+	io:format("Mass:  ~w~n", [Mass]),
 	Distance = math:sqrt((X * X) + (Y * Y)),
 	PlanetEffect = ((Mass * 1) / (Distance * Distance)),
 	{FullX, FullY} = {0 - X, 0 - Y},

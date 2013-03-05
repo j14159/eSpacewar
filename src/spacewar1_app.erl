@@ -25,7 +25,15 @@ start(_StartType, _StartArgs) ->
 		),
 	lager:start(),
 	gen_server:start_link({local, space_score}, score_board, [], []),
-	gen_server:start_link({local, play_space}, space, [800, 500], []),
+	
+	{ok, Xsize} = application:get_env(xsize),
+	{ok, Ysize} = application:get_env(ysize),
+	{ok, PlanetSize} = application:get_env(planet_radius),
+	{ok, ShipMass} = application:get_env(ship_mass),
+	{ok, TorpMass} = application:get_env(torp_mass),
+
+	gen_server:start_link({local, play_space}, space, 
+		[Xsize, Ysize, PlanetSize, ShipMass, TorpMass], []),
 	spacewar1_sup:start_link().
 
 
