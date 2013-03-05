@@ -100,7 +100,6 @@ torping_and_torped(Torps, Players, {Xsize, Ysize, {PlanetSize, _, TorpMass}}) ->
 
 %% change an entities vector based on planetary gravity.
 planet_influence(X, Y, Vec, Mass) ->
-	io:format("Mass:  ~w~n", [Mass]),
 	Distance = math:sqrt((X * X) + (Y * Y)),
 	PlanetEffect = ((Mass * 1) / (Distance * Distance)),
 	{FullX, FullY} = {0 - X, 0 - Y},

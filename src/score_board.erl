@@ -84,7 +84,9 @@ attempt_join(WsPid, NewName, State) ->
 		[H | _] when H == NewName ->
 			{not_available, State};
 		_ ->
-			NewPid = spawn(player, player, [WsPid, 500, 800]),
+			{ok, Xsize} = application:get_env(xsize),
+			{ok, Ysize} = application:get_env(ysize),
+			NewPid = spawn(player, player, [WsPid, Xsize, Ysize]),
 			{ok, NewPid, [{NewName, NewPid, 0} | State]}
 	end.
 
