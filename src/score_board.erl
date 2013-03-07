@@ -86,7 +86,10 @@ attempt_join(WsPid, NewName, State) ->
 		_ ->
 			{ok, Xsize} = application:get_env(xsize),
 			{ok, Ysize} = application:get_env(ysize),
-			NewPid = spawn(player, player, [WsPid, Xsize, Ysize]),
+			{ok, TorpLifespan} = application:get_env(torp_lifespan),
+			{ok, TorpLimit} = application:get_env(torp_limit),
+
+			NewPid = spawn(player, player, [WsPid, {Xsize, Ysize, TorpLifespan, TorpLimit}]),
 			{ok, NewPid, [{NewName, NewPid, 0} | State]}
 	end.
 

@@ -1,5 +1,5 @@
 -module(player).
--export([player/3]).
+-export([player/2]).
 
 starting_pos(Xsize, Ysize) ->
 	case random:uniform(1000) of
@@ -13,32 +13,36 @@ starting_pos(Xsize, Ysize) ->
 			{random:uniform(Ysize), 0 - (Xsize / 2)  + 10, 0}
 	end.
 
-player(Master, Xsize, Ysize) ->
+player(Master, Config) ->
 	io:format("Player PID is ~w~n", [self()]),
+	{Xsize, Ysize, _, _} = Config,
 	random:seed(erlang:now()),
 	{X, Y, Z} = starting_pos(Xsize, Ysize),
-	player(Master, {X, Y, Z}, movement:startMatrix(0, 0), none, 0, Xsize, Ysize).
+	player(Master, {X, Y, Z}, movement:startMatrix(0, 0), none, 0, Config).
 
-player(Master, _, _, dead, _, Xsize, Ysize) ->
+player(Master, _, _, dead, _, Config) ->
+	{Xsize, Ysize, _, _} = Config,
 	receive
 		respawn ->
 			{X, Y, Z} = starting_pos(Xsize, Ysize),
 			gen_server:cast(play_space, {self(), X, Y, Z, movement:startMatrix(0, 0) }),
-			player(Master, { X, Y, 0 }, movement:startMatrix(0, 0), none, 0, Xsize, Ysize);
+			player(Master, { X, Y, 0 }, movement:startMatrix(0, 0), none, 0, Config);
 		{moved, _, _, NotMe, Torps} ->
 			Master ! {updated, payload(NotMe, Torps)},
-			player(Master, none, none, dead, 0, Xsize, Ysize);
+			player(Master, none, none, dead, 0, Config);
 		{score, Score} ->
 			Master ! {updated, score_payload(Score)},
-			player(Master, {0, 0, 0}, none, dead, 0, Xsize, Ysize);
+			player(Master, {0, 0, 0}, none, dead, 0, Config);
 		die ->
 			gen_server:cast(play_space, {dead, self()}),
 			0;
 		_ ->
-			player(Master, {0, 0, 0}, none, dead, 0, Xsize, Ysize)
+			player(Master, {0, 0, 0}, none, dead, 0, Config)
 	end;
 
-player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps, Xsize, Ysize) ->
+player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps, Config) ->
+	{Xsize, Ysize, TorpLifespan, TorpLimit} = Config,
+
 	Payload = mochijson2:encode({struct, [{player, entity_struct(X, Y, Heading)}]}),
 	Master ! {updated, Payload},
 	gen_server:cast(play_space, {self(), X, Y, Heading, Vector}),
@@ -46,46 +50,46 @@ player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps, Xsize, Ysize) -
 	receive
 		{moved, X1, Y1, NotMe, Torps} ->
 			Master ! {updated, payload({X, Y, Heading}, NotMe, Torps)},
-			player(Master, {X1, Y1, Heading}, Vector, none, LiveTorps, Xsize, Ysize);
+			player(Master, {X1, Y1, Heading}, Vector, none, LiveTorps, Config);
 		thrust when UpdateVector =:= none ->
 			{{_, _}, {NvX, NvY}} = movement:addMatrix(Vector, movement:nextMatrix(scaled, Heading, 1, X, Y)),
 			Vec = {{X, Y}, {NvX, NvY}},
 			gen_server:cast(play_space, {self(), X, Y, Heading, Vec}),
-			player(Master, {X, Y, Heading}, Vector, done, LiveTorps, Xsize, Ysize);
-		torp when LiveTorps < 3 ->
-			Torp = spawn(torps, torp, [self()]),
+			player(Master, {X, Y, Heading}, Vector, done, LiveTorps, Config);
+		torp when LiveTorps =< TorpLimit ->
+			Torp = spawn(torps, torp, [self(), TorpLifespan]),
 			TorpVec = movement:nextMatrix(torp, Heading, 8, X, Y),
 			{Tx1, Ty1} = move(X, Y, TorpVec, 4),
 			
 			gen_server:cast(play_space, {torp, {Torp, Tx1, Ty1, 0, TorpVec}}),
-			player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps + 1, Xsize, Ysize);
+			player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps + 1, Config);
 		torp ->
-			player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps, Xsize, Ysize);
+			player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps, Config);
 		dead_torp ->
-			player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps - 1, Xsize, Ysize);
+			player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps - 1, Config);
 		{attitude, Change} ->
 			case Change of
 				C when C < 0 ->
 					player(Master, {X, Y, movement:clampAttitude(Heading - 2)},
-						Vector, UpdateVector, LiveTorps, Xsize, Ysize);
+						Vector, UpdateVector, LiveTorps, Config);
 				C when C > 0 ->
 					player(Master, {X, Y, movement:clampAttitude(Heading + 2)},
-						Vector, UpdateVector, LiveTorps, Xsize, Ysize);
+						Vector, UpdateVector, LiveTorps, Config);
 				_ ->
 					player(Master, {X, Y, Heading},
-						Vector, UpdateVector, LiveTorps, Xsize, Ysize)
+						Vector, UpdateVector, LiveTorps, Config)
 			end;
 		dead ->
 			timer:send_after(2000, respawn),
-			player(Master, {0, 0, 0}, none, dead, 0, Xsize, Ysize);
+			player(Master, {0, 0, 0}, none, dead, 0, Config);
 		{score, Score} ->
 			Master ! {updated, score_payload(Score)},
-			player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps, Xsize, Ysize);
+			player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps, Config);
 		die ->
 			gen_server:cast(play_space, {dead, self()}),
 			0;
 		_ ->
-			player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps, Xsize, Ysize)
+			player(Master, {X, Y, Heading}, Vector, UpdateVector, LiveTorps, Config)
 	end.
 
 % move is a bit of a hack to make sure torps spawn far enough away from the player.

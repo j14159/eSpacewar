@@ -1,14 +1,11 @@
 -module(torps).
--export([torp/1]).
+-export([torp/2]).
 
 %%%----------------------------------------------------------------------
 %%%
 %%% Each live torpedo is tracked by an instance of this module/process.
 %%%
 %%%----------------------------------------------------------------------
-
-torp(Player) ->
-	torp(Player, 100).
 
 torp(Player, 0) ->
 	Player ! dead_torp,
