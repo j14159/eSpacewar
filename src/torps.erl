@@ -8,7 +8,7 @@
 %%%----------------------------------------------------------------------
 
 torp(Player, 0) ->
-	Player ! dead_torp,
+	gen_fsm:send_event(Player, dead_torp),
 	gen_server:cast(play_space, {dead_torp, self()}),
 	0;
 torp(Player, TicksRemaining) ->

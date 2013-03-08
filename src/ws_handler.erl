@@ -23,21 +23,25 @@ websocket_init(TransportName, Req, _Opts) ->
 websocket_handle({text, Msg}, Req, State) ->
     case Msg of
         <<"1", _, _, _>> ->
-            State ! {attitude, -1};
+            %State ! {attitude, -1};
+            gen_fsm:send_event(State, {attitude, -1});
         <<_, "1", _, _>> ->
-            State ! {attitude, 1};
+            %State ! {attitude, 1};
+            gen_fsm:send_event(State, {attitude, 1});
         _ -> Msg
     end,
     
     case Msg of
         <<_, _, "1", _>> ->
-            State ! thrust;
+            %State ! thrust;
+            gen_fsm:send_event(State, thrust);
         _ -> Msg
     end,
     
     case Msg of
         <<_, _, _, "1">> ->
-            State ! torp;
+            %State ! torp;
+            gen_fsm:send_event(State, torp);
         _ -> Msg
     end,
     
@@ -60,7 +64,8 @@ websocket_terminate(Reason, Req, State) ->
             0;
         _ ->
             lager:info("State in disconnection is OK"),
-            State ! die,
+            %State ! die,
+            gen_fsm:send_event(State, die),
             gen_server:cast(space_score, {remove, State})
     end,
     ok.

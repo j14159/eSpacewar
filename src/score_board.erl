@@ -48,6 +48,7 @@ handle_cast({remove, PlayerPid}, State) ->
 %% Someone got a point or crashed, adjust score appropriately.
 %%
 handle_cast({PlayerPid, ScoreChange}, State) ->
+	lager:info("Score change ~w for ~w", [ScoreChange, PlayerPid]),
 	NewState = update_state(PlayerPid, ScoreChange, State),
 	broadcast_score(NewState),
 	{noreply, NewState}.
@@ -72,7 +73,8 @@ terminate(Reason, State) ->
 broadcast_score(State) ->
 	%% TODO:  gen_server:cast instead of ! once players are gen_server
 	CleanScore = [{Name, Score} || {Name, _, Score} <- State],
-	lists:map(fun({_, Pid, _}) -> Pid ! {score, CleanScore} end, State).
+	%lists:map(fun({_, Pid, _}) -> Pid ! {score, CleanScore} end, State).
+	lists:map(fun({_, Pid, _}) -> gen_fsm:send_event(Pid, {score, CleanScore}) end, State).
 
 %%
 %% checks to see if the requested name is available for a new player and if so,
@@ -89,7 +91,8 @@ attempt_join(WsPid, NewName, State) ->
 			{ok, TorpLifespan} = application:get_env(torp_lifespan),
 			{ok, TorpLimit} = application:get_env(torp_limit),
 
-			NewPid = spawn(player, player, [WsPid, {Xsize, Ysize, TorpLifespan, TorpLimit}]),
+			%NewPid = spawn(player, player, [WsPid, {Xsize, Ysize, TorpLifespan, TorpLimit}]),
+			{ok, NewPid} = gen_fsm:start(player, {WsPid, {Xsize, Ysize, TorpLifespan, TorpLimit}}, []),
 			{ok, NewPid, [{NewName, NewPid, 0} | State]}
 	end.
 
