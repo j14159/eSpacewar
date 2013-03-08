@@ -17,7 +17,6 @@ torp(Player, TicksRemaining) ->
 		tick ->
 			torp(Player, TicksRemaining - 1);
 		dead ->
-			io:format("Torp killed by space~n", []),
 			torp(Player, 0);
 		{hit, Player} ->
 			%% if a player hits themself with their own torpedo,

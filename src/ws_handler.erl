@@ -1,6 +1,5 @@
 -module(ws_handler).
 -behaviour(cowboy_websocket_handler).
--compile([{parse_transform, lager_transform}]).
 
 -export([init/3, websocket_init/3, websocket_handle/3, websocket_info/3, websocket_terminate/3]).
 
