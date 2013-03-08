@@ -97,9 +97,12 @@ torping_and_torped(Torps, Players, {Xsize, Ysize, {PlanetSize, _, TorpMass}}) ->
 	{StillTorping, HitTorps, PlanetTorps, Torped}.
 
 %% change an entities vector based on planetary gravity.
+%% this isn't precisely accurate at first glance, Mass
+%% should technically be (entity mass * planet mass)
+%% but it's close enough for this game.
 planet_influence(X, Y, Vec, Mass) ->
 	Distance = math:sqrt((X * X) + (Y * Y)),
-	PlanetEffect = ((Mass * 1) / (Distance * Distance)),
+	PlanetEffect = (Mass / (Distance * Distance)),
 	{FullX, FullY} = {0 - X, 0 - Y},
 	PlanetVector = {{X, Y}, {PlanetEffect * FullX, PlanetEffect * FullY}},
 	movement:addMatrix(Vec, PlanetVector).
