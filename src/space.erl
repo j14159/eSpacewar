@@ -23,8 +23,6 @@ handle_cast({dead_torp, Pid}, {Config, Players, Torps}) ->
 	{noreply, {Config, Players, LiveTorps}};
 
 handle_cast({dead, Pid}, {Config, Players, Torps}) ->
-	% heavier logging here to track down phantom player bug
-	lager:info("space will remove pid ~w as dead, pre-filter player length is ~w", [Pid, length(Players)]),
 	Filtered = [{P, XX, YY, ZZ, V} || {P, XX, YY, ZZ, V} <- Players, P /= Pid],
 	lager:info("post-filter player length is ~w", [length(Filtered)]),
 	{noreply, {Config, Filtered, Torps}};
@@ -50,7 +48,6 @@ handle_info(update, {Config, Players, Torps}) ->
 	TorpAndKilled = lists:zip(HitTorps, Torped),
 	
 	lists:map(fun({{Pid, _, _, _, _}, {HitShipPid, _, _, _, _}}) -> Pid ! {hit, HitShipPid} end, TorpAndKilled),
-	%lists:map(fun({{Pid, _, _, _, _}, {HitShipPid, _, _, _, _}}) -> gen_fsm:send_event(Pid, {hit, HitShipPid}) end, TorpAndKilled),
 	lists:map(fun({Pid, _, _, _, _}) -> Pid ! dead end, PlanetTorps),
 	lists:map(fun({Pid, _, _, _, _}) -> Pid ! tick end, StillTorping),
 	
@@ -66,7 +63,6 @@ handle_info(update, {Config, Players, Torps}) ->
 	
 	msg_players(NotDead, NotDead, StillTorping),
 	% tell dead players they're dead:
-	%lists:map(fun({Pid, _, _, _, _}) -> Pid ! dead end, Dead),
 	lists:map(fun({Pid, _, _, _, _}) -> gen_fsm:send_event(Pid, dead) end, Dead),
 	
 	timer:send_after(50, update),
@@ -168,7 +164,6 @@ msg_players([P | Rest], Players, Torps) ->
 	{Pid, X, Y, _, _} = P,
 	NotMe = [E || E <- Players, E /= P],
 	Msg = {moved, X, Y, NotMe, Torps},
-	%Pid ! Msg,
 	gen_fsm:send_event(Pid, Msg),
 	msg_players(Rest, Players, Torps).
 

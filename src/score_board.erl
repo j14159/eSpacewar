@@ -62,7 +62,6 @@ code_change(PreviousVersion, State, Extra) ->
 	{ok, State}.
 
 terminate(Reason, State) ->
-	%% TODO:  notify remaining players we're shutting down.
 	ok.
 
 %%% PRIVATE functions -------------------------
@@ -91,7 +90,6 @@ attempt_join(WsPid, NewName, State) ->
 			{ok, TorpLifespan} = application:get_env(torp_lifespan),
 			{ok, TorpLimit} = application:get_env(torp_limit),
 
-			%NewPid = spawn(player, player, [WsPid, {Xsize, Ysize, TorpLifespan, TorpLimit}]),
 			{ok, NewPid} = gen_fsm:start(player, {WsPid, {Xsize, Ysize, TorpLifespan, TorpLimit}}, []),
 			{ok, NewPid, [{NewName, NewPid, 0} | State]}
 	end.

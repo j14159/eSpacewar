@@ -10,6 +10,7 @@ init({Master, {Xsize, Ysize, TorpLifespan, TorpLimit}}) ->
 	random:seed(erlang:now()),
 	{X, Y, Z} = starting_pos(Xsize, Ysize),
 	Vector = movement:startMatrix(0, 0),
+	%% let the client and playing space know we're here:
 	update_myself(Master, X, Y, Z, Vector),
 	{ok, live_player, {Master, {X, Y, Z}, Vector, none, 0, {Xsize, Ysize, TorpLifespan, TorpLimit}}}.
 
@@ -17,12 +18,6 @@ init({Master, {Xsize, Ysize, TorpLifespan, TorpLimit}}) ->
 dead_player(Event, From, Data) ->
 	lager:warning("Synchronous call made to dead player, not handled:  ~w", [Event]),
 	{next_state, dead_player, Data}.
-
-dead_player(respawn, {Master, _, _, _, _, Config}) ->
-	{Xsize, Ysize, _, _} = Config,
-	{X, Y, Z} = starting_pos(Xsize, Ysize),
-	gen_server:cast(play_space, {self(), X, Y, Z, movement:startMatrix(0, 0) }),
-	{next_state, live_player, {Master, {X, Y, Z}, movement:startMatrix(0, 0), none, 0, Config}};
 
 dead_player({moved, _, _, NotMe, Torps}, Data) ->
 	{Master, _, _, _, _, _} = Data,
@@ -34,6 +29,7 @@ dead_player({score, Score}, Data) ->
 	Master ! {updated, score_payload(Score)},
 	{next_state, dead_player, Data};
 
+%% websocket disconnection:
 dead_player(die, Data) ->
 	gen_server:cast(play_space, {dead, self()}),
 	{stop, player_disconnection, Data};
@@ -47,26 +43,29 @@ live_player(Event, From, Data) ->
 	lager:warning("Synchronous call made to live player, not handled:  ~w", [Event]),
 	{next_state, live_player, Data}.
 
+%% playing space has been updated, everyone moved
 live_player({moved, X1, Y1, NotMe, Torps}, {Master, {X, Y, Z}, Vector, _, LiveTorps, Config}) ->
 	Master ! {updated, payload({X1, Y1, Z}, NotMe, Torps)},
 	update_myself(Master, X1, Y1, Z, Vector),
 	{next_state, live_player, {Master, {X1, Y1, Z}, Vector, none, LiveTorps, Config}};
 
+%% handle a thrust command from the player iff they haven't applied one yet
+%% this tick.
 live_player(thrust, {Master, {X, Y, Z}, Vector, none, LiveTorps, Config}) ->
 	{{_, _}, {NvX, NvY}} = movement:addMatrix(Vector, movement:nextMatrix(scaled, Z, 1, X, Y)),
 	Vec = {{X, Y}, {NvX, NvY}},
 	gen_server:cast(play_space, {self(), X, Y, Z, Vec}),
-	%update_myself(Master, X, Y, Z, Vector),
 	{next_state, live_player, {Master, {X, Y, Z}, Vector, done, LiveTorps, Config}};
 
+%% player's already applied thrust this tick, ignore.
 live_player(thrust, {Master, {X, Y, Z}, Vector, done, LiveTorps, Config}) ->
 	update_myself(Master, X, Y, Z, Vector),
 	{next_state, live_player, {Master, {X, Y, Z}, Vector, done, LiveTorps, Config}};
 
+%% player is trying to fire a torpedo, check limits and spawn if allowed
 live_player(torp, {Master, {X, Y, Z}, Vector, Thrust, LiveTorps, Config}) ->
 	{_, _, TorpLifespan, TorpLimit} = Config,
-	%update_myself(Master, X, Y, Z, Vector),
-
+	
 	case LiveTorps of
 		LiveTorps when LiveTorps =< TorpLimit ->
 			Torp = spawn(torps, torp, [self(), TorpLifespan]),
@@ -79,13 +78,13 @@ live_player(torp, {Master, {X, Y, Z}, Vector, Thrust, LiveTorps, Config}) ->
 			{next_state, live_player, {Master, {X, Y, Z}, Vector, Thrust, LiveTorps, Config}}
 	end;
 
+%% a torpedo has been spent (lifespan or struck something), update in-flight count
 live_player(dead_torp, {Master, Me, Vector, UpdateVector, LiveTorps, Config}) ->
 	{X, Y, Z} = Me,
-	%update_myself(Master, X, Y, Z, Vector),
 	{next_state, live_player, {Master, Me, Vector, UpdateVector, LiveTorps - 1, Config}};
 
+%% heading change requested by player
 live_player({attitude, Change}, {Master, {X, Y, Z}, Vector, UpdateVector, LiveTorps, Config}) ->
-	%update_myself(Master, X, Y, Z, Vector),
 	case Change of
 		C when C < 0 ->
 			{next_state, live_player, {Master, {X, Y, movement:clampAttitude(Z - 2)}, Vector, UpdateVector, LiveTorps, Config}};
@@ -95,15 +94,18 @@ live_player({attitude, Change}, {Master, {X, Y, Z}, Vector, UpdateVector, LiveTo
 			{next_state, live_player, {Master, {X, Y, Z}, Vector, UpdateVector, LiveTorps, Config}}
 	end;
 
+%% somebody killed us or we ran into something (player or planet)
 live_player(dead, {Master, Me, _, _, _, Config}) ->
 	timer:send_after(2000, respawn),
 	{next_state, dead_player, {Master, Me, none, dead, 0, Config}};
 
+%% score update, let the client know
 live_player({score, Score}, Data) ->
 	{Master, _, _, _, _, _} = Data,
 	Master ! {updated, score_payload(Score)},
 	{next_state, live_player, Data};
 
+%% websocket disconnection
 live_player(die, Data) ->
 	gen_server:cast(play_space, {dead, self()}),
 	{stop, player_disconnection, Data};
@@ -120,6 +122,7 @@ handle_sync_event(Event, From, StateName, Data) ->
 	lager:warning("sync player handle_event got a message:  ~w", [Event]),
 	{next_state, StateName, Data}.
 
+%% time to respawn, find a new position and update everyone
 handle_info(respawn, _, {Master, _, _, _, _, Config}) ->
 	{Xsize, Ysize, _, _} = Config,
 	{X, Y, Z} = starting_pos(Xsize, Ysize),
@@ -138,6 +141,9 @@ update_myself(Master, X, Y, Heading, Vector) ->
 	Master ! {updated, Payload},
 	gen_server:cast(play_space, {self(), X, Y, Heading, Vector}).
 
+%% helper method to find a starting position and heading.
+%% this should really be in space.erl, obviously but it's outside
+%% the scope of what I wanted to accomplish for now.
 starting_pos(Xsize, Ysize) ->
 	case random:uniform(1000) of
 		S when S =< 250 ->
@@ -151,16 +157,19 @@ starting_pos(Xsize, Ysize) ->
 	end.
 
 
-% TODO:  think I can remove this, move is a bit of a hack to make sure torps spawn far enough away from the player.
+%% move is a bit of a hack to make sure torps spawn far enough away from the player.
 move(X, Y, _, 0) ->
 	{X, Y};
 move(X, Y, Vec, Count) ->
 	{X2, Y2} = movement:move({X, Y}, Vec),
 	move(X2, Y2, Vec, Count - 1).
 
+%% helps format the player's info for JSON serialization
 entity_struct(X, Y, Z) ->
 	{struct, [{x, X}, {y, Y}, {z, Z}]}.
 
+%% helps format a group of entities (torps, enemies) for 
+%% JSON serialization.
 group_struct(Group) ->
 	Compacted = [{X, Y, Z} || {_, X, Y, Z, _} <- Group],
 	lists:map(fun({X, Y, Z}) -> entity_struct(X, Y, Z) end, Compacted).
@@ -180,4 +189,3 @@ score_payload(Score) ->
 	Structified = lists:map(fun({N, S}) -> {struct, [{name, N}, {score, S}]} end, Score),
 	FullStruct = {struct, [{score, Structified}]},
 	mochijson2:encode(FullStruct).
-
