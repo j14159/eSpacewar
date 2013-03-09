@@ -1,4 +1,4 @@
--module(spacewar1_app).
+-module(espacewar_app).
 
 -behaviour(application).
 
@@ -34,7 +34,7 @@ start(_StartType, _StartArgs) ->
 
 	gen_server:start_link({local, play_space}, space, 
 		[Xsize, Ysize, PlanetSize, ShipMass, TorpMass], []),
-	spacewar1_sup:start_link().
+	espacewar_sup:start_link().
 
 
 stop(_State) ->

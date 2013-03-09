@@ -45,7 +45,6 @@ code_change(OldVersion, State, Extra) ->
 	{ok, State}.
 
 terminate(normal, {Player, _}) ->
-	lager:info("Shutting down torp", []),
 	gen_fsm:send_event(Player, dead_torp),
 	gen_server:cast(play_space, {dead_torp, self()}),
 	ok.

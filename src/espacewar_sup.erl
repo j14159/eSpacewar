@@ -1,5 +1,4 @@
-
--module(spacewar1_sup).
+-module(espacewar_sup).
 
 -behaviour(supervisor).
 

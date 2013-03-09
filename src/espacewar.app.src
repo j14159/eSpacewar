@@ -1,4 +1,4 @@
-{application, spacewar1,
+{application, espacewar,
  [
   {description, ""},
   {vsn, "1"},
@@ -9,6 +9,6 @@
 		  crypto,
 		  cowboy
                  ]},
-  {mod, { spacewar1_app, []}},
+  {mod, { espacewar_app, []}},
   {env, []}
  ]}.
