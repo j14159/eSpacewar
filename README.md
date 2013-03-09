@@ -1,11 +1,11 @@
 eSpacewar
 =========
 
-Multiplayer Spacewar over websockets built on Erlang with Cowboy.
+Multiplayer Spacewar over websockets built on Erlang with Cowboy.  See the [blog post](http://noisycode.com/blog/2013/03/09/espacewar-open-sourced/)
 
 # What You Need
 
-* [Erlang](http://erlang.org)
+* [Erlang](http://erlang.org) - I'be been using R15B03
 * [Rebar](https://github.com/basho/rebar)
 
 # Run it
@@ -14,16 +14,16 @@ Before you try running it for the first time:
 	$ rebar get-deps
 	$ rebar compile
 
-And launch Erlang with the correct ebin folders available:
+And launch it with the start script:
 
-	$ erl -pa ebin/ deps/cowboy/ebin/ deps/ranch/ebin/ deps/mimetypes/ebin/ deps/mochijson2/ebin/
+	[jeremy@mbp-0x90:~/code/erlang/eSpacewar(master)]$ ./start.sh
 
-And in the Erlang shell:
+Or from the Erlang shell with correct binary folders on the path:
 
-	1> spacewar1:start().
+	1> espacewar:start().
 
 # Play It
 
 Go to the following link (assuming you've run it locally):
 
-[http://localhost:8080/sw/sw.html](http://localhost:8080/sw/sw.html)
+[http://localhost:8080/sw.html](http://localhost:8080/sw.html)
