@@ -32,7 +32,7 @@ dead_player({score, Score}, Data) ->
 %% websocket disconnection:
 dead_player(die, Data) ->
 	gen_server:cast(play_space, {dead, self()}),
-	{stop, player_disconnection, Data};
+	{stop, normal, Data};
 
 %% catch-all
 dead_player(_, Data) ->
@@ -68,7 +68,8 @@ live_player(torp, {Master, {X, Y, Z}, Vector, Thrust, LiveTorps, Config}) ->
 	
 	case LiveTorps of
 		LiveTorps when LiveTorps =< TorpLimit ->
-			Torp = spawn(torps, torp, [self(), TorpLifespan]),
+			%Torp = spawn(torps, torp, [self(), TorpLifespan]),
+			{ok, Torp} = gen_server:start(torps, {self(), TorpLifespan}, []),
 			TorpVec = movement:nextMatrix(torp, Z, 8, X, Y),
 			{Tx1, Ty1} = move(X, Y, TorpVec, 4),
 			
@@ -108,7 +109,7 @@ live_player({score, Score}, Data) ->
 %% websocket disconnection
 live_player(die, Data) ->
 	gen_server:cast(play_space, {dead, self()}),
-	{stop, player_disconnection, Data};
+	{stop, normal, Data};
 
 %% catchall
 live_player(_, Data) ->
