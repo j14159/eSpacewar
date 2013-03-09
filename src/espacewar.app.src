@@ -1,14 +1,13 @@
-{application, espacewar,
- [
+{application, espacewar, [
   {description, ""},
   {vsn, "1"},
   {registered, []},
   {applications, [
-                  kernel,
-                  stdlib,
-		  crypto,
-		  cowboy
-                 ]},
+    kernel,
+    stdlib,
+		crypto,
+		cowboy
+  ]},
   {mod, { espacewar_app, []}},
   {env, []}
- ]}.
+  ]}.

@@ -4,10 +4,6 @@
     move/2, clampVector/1, clampVector/2, clampAttitude/1,
     clampedAddMatrix/3]).
 
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.
-
 %%%----------------------------------------------------------------------
 %%%
 %%% "movement" is one of the earliest modules in this project and it 
@@ -72,29 +68,4 @@ clampedAddMatrix({{Ax0, Ay0}, {Ax1, Ay1}}, {{Bx0, By0}, {Bx1, By1}}, Limit) ->
 move({CurrentX, CurrentY}, Vector) ->
     {_, {NewX, NewY}} = addMatrix({{CurrentX, CurrentY}, {CurrentX, CurrentY}}, Vector),
     {NewX, NewY}.
-	 
--ifdef(TEST).
-
-radians_and_degrees_test() ->
-    Result = degrees(radians(45)),
-    %we can't get super high precision so we just deal with a range:
-    [?assert(Result >= 44.9), ?assert(Result =< 45.1)].
-
-nextMatrix_test() ->
-    [?assert(nextMatrix(45) == {{0, 0}, {7, 7}}),
-     ?assert(nextMatrix(-45) == {{0, 0}, {7, -7}}),
-     ?assert(nextMatrix(90) == {{0, 0}, {0, 10}})].
-
-movement_test() ->
-    FirstVec = nextMatrix(45),
-    FirstPos = move({0, 0}, FirstVec),
-    ?assert(FirstPos == {7, 7}),
-
-    SecondVec = nextMatrix(FirstVec, 90),
-    SecondPos = move(FirstPos, SecondVec),
-    ?assert(SecondPos == {14, 24}),
-    
-    ThirdVec = nextMatrix(SecondVec, -90),
-    ThirdPos = move(SecondPos, ThirdVec),
-    ?assert(ThirdPos == {21, 31}).
--endif.
+	
