@@ -14,7 +14,7 @@ start(_StartType, _StartArgs) ->
 				{'_', [
 						{"/ws", ws_handler, []},
 						{"/[...]", cowboy_static, [
-								{directory, {priv_dir, spacewar1, []}},
+								{directory, {priv_dir, espacewar, []}},
 								{mimetypes, {fun mimetypes:path_to_mimes/2, default}}
 								]}
 						]}
